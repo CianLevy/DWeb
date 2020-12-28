@@ -62,7 +62,7 @@ Modified by: Raman Singh <rasingh@tcd.ie>,<raman.singh@thapar.edu> Post Doctoral
 
 uint32_t nLocality = 10;  //Number of gateway routers
 uint32_t n_requests = 20; // Number of interests shown by each consumer in ndn
-std::string repoPath = "home/cian/Documents/GitHub/DWeb";
+std::string repoPath = "/home/cian/Documents/GitHub/DWeb";
 std::ifstream file(repoPath + "/topologies/topology10.csv");                          // Topology file for both ns-3 and ndn network
 std::ifstream file1(repoPath + "/topologies/topology10.csv");                         // Topology file for ndn network static route. We can use above pointer also but I kept both separately.
 std::ifstream myfile(repoPath + "/requests.txt"); // This is basically names of ndn prefix. ndnSIM require these prefix to identify requests from different consumers. We can aim for one prefix for one published object and can use OID as a prefix also. Need to study how ndn consumer/producer works to integrate it better with blockchain.

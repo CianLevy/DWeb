@@ -40,4 +40,4 @@ scripts/.ethash
 scripts/.ether-*
 output
 +
-
+.vscode
