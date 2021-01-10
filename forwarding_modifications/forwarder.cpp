@@ -118,6 +118,8 @@ Forwarder::onIncomingInterest(const FaceEndpoint& ingress, const Interest& inter
     return;
   }
 
+  MaxGainPathMap::instance().update(interest.getNonce(), 0);
+
   // strip forwarding hint if Interest has reached producer region
   if (!interest.getForwardingHint().empty() &&
       m_networkRegionTable.isInProducerRegion(interest.getForwardingHint())) {
@@ -301,6 +303,15 @@ Forwarder::onIncomingData(const FaceEndpoint& ingress, const Data& data)
 
   // PIT match
   pit::DataMatchResult pitMatches = m_pit.findAllDataMatches(data);
+
+  // set tag first
+  // auto test = make_shared<pit::DataMatchResult>(&pitMatches);
+  // pit::DataMatchResult* pitMatchesCopy = new pit::DataMatchResult();
+  auto pitMatchesCopy = make_shared<pit::DataMatchResult>();
+  copy(pitMatches.begin(), pitMatches.end(), back_inserter(*pitMatchesCopy));
+
+  data.setTag(make_shared<ndn::SimpleTag<shared_ptr<pit::DataMatchResult>, 999>>(pitMatchesCopy));
+
   if (pitMatches.size() == 0) {
     // goto Data unsolicited pipeline
     this->onDataUnsolicited(ingress, data);
@@ -314,7 +325,6 @@ Forwarder::onIncomingData(const FaceEndpoint& ingress, const Data& data)
   if (pitMatches.size() == 1) {
     auto& pitEntry = pitMatches.front();
 
-    MaxGainPathMap::instance().update(pitEntry->getInterest().getNonce(), 0);
 
     NFD_LOG_DEBUG("onIncomingData matching=" << pitEntry->getName());
 
@@ -344,8 +354,6 @@ Forwarder::onIncomingData(const FaceEndpoint& ingress, const Data& data)
 
     for (const auto& pitEntry : pitMatches) {
       NFD_LOG_DEBUG("onIncomingData matching=" << pitEntry->getName());
-
-      MaxGainPathMap::instance().update(pitEntry->getInterest().getNonce(), 0);
 
       // remember pending downstreams
       for (const pit::InRecord& inRecord : pitEntry->getInRecords()) {

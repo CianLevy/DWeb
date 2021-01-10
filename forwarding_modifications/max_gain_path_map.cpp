@@ -6,7 +6,8 @@ void MaxGainPathMap::update(uint32_t nonce, int local_popularity){
     std::map<uint32_t, int>::iterator it = popularityMap.find(nonce);
 
     if (it != popularityMap.end()){
-        it->second++;
+        if (local_popularity > it->second)
+            it->second = local_popularity;
     } else{
         popularityMap[nonce] = 0;
     }       
