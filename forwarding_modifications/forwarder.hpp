@@ -293,6 +293,7 @@ private:
   DeadNonceList      m_deadNonceList;
   NetworkRegionTable m_networkRegionTable;
   shared_ptr<Face>   m_csFace;
+  shared_ptr<PopularityCounter> m_popCounter;
 
   // allow Strategy (base class) to enter pipelines
   friend class fw::Strategy;

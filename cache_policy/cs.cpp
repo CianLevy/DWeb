@@ -193,17 +193,17 @@ Cs::isMaxGain(const Data& data){
   auto tag = data.getTag<temp>();
   data.removeTag<temp>();
 
-  // int local_popularity = 3; // need to implement an actual calculation here
-  auto pitMatches = tag->get();    
+  auto pitMatches = tag->get();
 
   for (const auto& pitEntry : *pitMatches){
     uint32_t interest_nonce = pitEntry->getInterest().getNonce();
-    int local_popularity = pitEntry->getRequestRate();
+    int local_popularity = m_popCounter->getPopularity(pitEntry->getInterest().getName());
     int max_path_popularity = MaxGainPathMap::instance().getPopularity(interest_nonce);
-    std::cout << "Local popularity: " << local_popularity << " max on path: " << max_path_popularity << std::endl;
+  
+    std::cout << "Local popularity: " << local_popularity << " Max on path: " << max_path_popularity << " Nonce: " << interest_nonce << std::endl;
 
-    if (local_popularity > max_path_popularity){
-      std::cout << "caching data for interest: " << interest_nonce << std::endl;
+    if (local_popularity >= max_path_popularity && local_popularity > 0){
+      std::cout << "Caching data for: " << pitEntry->getInterest().getName().toUri(ndn::name::UriFormat::DEFAULT) << " Nonce: " << interest_nonce << std::endl;
       return true;
     }
   }

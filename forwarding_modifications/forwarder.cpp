@@ -57,7 +57,11 @@ Forwarder::Forwarder(FaceTable& faceTable)
   , m_measurements(m_nameTree)
   , m_strategyChoice(*this)
   , m_csFace(face::makeNullFace(FaceUri("contentstore://")))
+  , m_popCounter(make_shared<PopularityCounter>())
 {
+  m_pit.addPopCounter(m_popCounter);
+  m_cs.addPopCounter(m_popCounter);
+
   m_faceTable.addReserved(m_csFace, face::FACEID_CONTENT_STORE);
 
   m_faceTable.afterAdd.connect([this] (const Face& face) {
@@ -118,7 +122,8 @@ Forwarder::onIncomingInterest(const FaceEndpoint& ingress, const Interest& inter
     return;
   }
 
-  MaxGainPathMap::instance().update(interest.getNonce(), 0);
+  int local_popularity = m_popCounter->getPopularity(interest.getName());
+  MaxGainPathMap::instance().update(interest.getNonce(), local_popularity);
 
   // strip forwarding hint if Interest has reached producer region
   if (!interest.getForwardingHint().empty() &&

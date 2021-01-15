@@ -4,9 +4,24 @@
 #include <utility>
 #include <map>
 #include <iostream>
-
+#include <string.h>
+#include <chrono>
+#include <vector>
+#include "ndn-cxx/name.hpp"
 
 namespace nfd {
+//class Name;
+
+class PopularityCounter {
+public:
+    int getPopularity(ndn::Name n);
+    void recordRequest(ndn::Name n);
+    void print(std::vector<std::chrono::nanoseconds>* vec);
+
+private:
+    std::map<std::string, std::vector<std::chrono::nanoseconds>*> popularityMap;
+};
+
 
 class MaxGainPathMap{
 
@@ -27,6 +42,8 @@ public:
             std::cout << it->first << ": " << it->second << std::endl;
         }
     }
+
+    ~MaxGainPathMap(){ std::cout << "Final map size " << popularityMap.size() << std::endl; }
 
 private:
     std::map<uint32_t, int> popularityMap;
