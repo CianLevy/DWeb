@@ -27,7 +27,7 @@
 #define NFD_DAEMON_TABLE_CS_HPP
 
 #include "cs-policy.hpp"
-#include "fw/max_gain_path_map.hpp"
+#include "fw/magic_utils.hpp"
 
 namespace nfd {
 namespace cs {
@@ -159,7 +159,7 @@ public: // configuration
   enableServe(bool shouldServe);
 
   void
-  addPopCounter(shared_ptr<PopularityCounter> popCounter) { m_popCounter = popCounter; }
+  addPopCounter(shared_ptr<magic::PopularityCounter> popCounter) { m_popCounter = popCounter; }
 
 public: // enumeration
   using const_iterator = Table::const_iterator;
@@ -189,9 +189,6 @@ private:
   void
   setPolicyImpl(unique_ptr<Policy> policy);
 
-  bool
-  isMaxGain(const Data& data);
-
 PUBLIC_WITH_TESTS_ELSE_PRIVATE:
   void
   dump();
@@ -204,7 +201,7 @@ private:
   bool m_shouldAdmit = true; ///< if false, no Data will be admitted
   bool m_shouldServe = true; ///< if false, all lookups will miss
 
-  shared_ptr<PopularityCounter> m_popCounter;
+  shared_ptr<magic::PopularityCounter> m_popCounter;
 };
 
 } // namespace cs

@@ -1,7 +1,0 @@
-1. Create json file, Once only ./genesis.sh
-2. ./bootnode.sh : create bootnode
-3. ./runminer.sh miner1
-4. ./create_all.sh; Give nLocality and it will create numberof ethereum nodes by running runnode.sh
-
-5. to delete everything
-./wipeall.sh

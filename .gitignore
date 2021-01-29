@@ -41,3 +41,5 @@ scripts/.ether-*
 output
 +
 .vscode
+/backup
+/original_files

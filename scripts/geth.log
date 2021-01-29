@@ -3,3 +3,64 @@ Error response from daemon: Container 6360776fba9d47dceeab4e79bd9d305e874fca4b3a
 Error response from daemon: Container ce2bddca2223672cb7c74e325075019e92cdcd60a270b667c3e9901bc027dea7 is not running
 Error response from daemon: Container ce2bddca2223672cb7c74e325075019e92cdcd60a270b667c3e9901bc027dea7 is not running
 Error response from daemon: Container ce2bddca2223672cb7c74e325075019e92cdcd60a270b667c3e9901bc027dea7 is not running
+Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running?
+Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running?
+Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running?
+Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running?
+Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running?
+Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running?
+Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running?
+Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running?
+Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running?
+Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running?
+Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running?
+Error response from daemon: Container fdc83fba77aad9160319a37872decaaef9209aee945d4033e06d38f309498cf6 is not running
+Error response from daemon: Container 5002feba0eaef53eeff6d33ec7ed6eb18e0990877a31d9ab39bf996a6e8823d2 is not running
+Error response from daemon: Container b19e883219dae17ab558611827df6c59e6b53723626f3ceda9cdbdb43a4418bc is not running
+Error response from daemon: Container b0ccdb490fc92761161a91db4532b6124bbb6d1887a309ca0d8ccfd1fbe1e648 is not running
+Error response from daemon: Container ff066f26b459f54380a99b12ab727c1fce97d88dc16f82bf86125d25f7a0dad8 is not running
+Error response from daemon: Container 5aaf57ebf362e03e78c41275225308d9f7943287702cadbf1007df0c970d84a1 is not running
+Error response from daemon: Container a3d70ef0d56b80aa76976f5c9a2898025470cb35641fd54c55828d34f77422eb is not running
+Error response from daemon: Container 168f6d502f96598bf220f416b3559363913820ee14f33dbe7960f00fecc748ba is not running
+Error response from daemon: Container 49d8cd0d6f69e79f0d944f30af709f076eb4043a4ff6b21983a75738a92fcd35 is not running
+Error response from daemon: Container ecab62d87c6ebcc169dcdfca940f9a078f2d1762e97462f84765c84aab76e0ab is not running
+Error response from daemon: Container fdc83fba77aad9160319a37872decaaef9209aee945d4033e06d38f309498cf6 is not running
+Error response from daemon: Container 5002feba0eaef53eeff6d33ec7ed6eb18e0990877a31d9ab39bf996a6e8823d2 is not running
+Error response from daemon: Container b19e883219dae17ab558611827df6c59e6b53723626f3ceda9cdbdb43a4418bc is not running
+Error response from daemon: Container b0ccdb490fc92761161a91db4532b6124bbb6d1887a309ca0d8ccfd1fbe1e648 is not running
+Error response from daemon: Container ff066f26b459f54380a99b12ab727c1fce97d88dc16f82bf86125d25f7a0dad8 is not running
+Error response from daemon: Container 5aaf57ebf362e03e78c41275225308d9f7943287702cadbf1007df0c970d84a1 is not running
+Error response from daemon: Container a3d70ef0d56b80aa76976f5c9a2898025470cb35641fd54c55828d34f77422eb is not running
+Error response from daemon: Container 168f6d502f96598bf220f416b3559363913820ee14f33dbe7960f00fecc748ba is not running
+Error response from daemon: Container 49d8cd0d6f69e79f0d944f30af709f076eb4043a4ff6b21983a75738a92fcd35 is not running
+Error response from daemon: Container ecab62d87c6ebcc169dcdfca940f9a078f2d1762e97462f84765c84aab76e0ab is not running
+Error response from daemon: Container fdc83fba77aad9160319a37872decaaef9209aee945d4033e06d38f309498cf6 is not running
+Error response from daemon: Container 5002feba0eaef53eeff6d33ec7ed6eb18e0990877a31d9ab39bf996a6e8823d2 is not running
+Error response from daemon: Container b19e883219dae17ab558611827df6c59e6b53723626f3ceda9cdbdb43a4418bc is not running
+Error response from daemon: Container b0ccdb490fc92761161a91db4532b6124bbb6d1887a309ca0d8ccfd1fbe1e648 is not running
+Error response from daemon: Container ff066f26b459f54380a99b12ab727c1fce97d88dc16f82bf86125d25f7a0dad8 is not running
+Error response from daemon: Container 5aaf57ebf362e03e78c41275225308d9f7943287702cadbf1007df0c970d84a1 is not running
+Error response from daemon: Container a3d70ef0d56b80aa76976f5c9a2898025470cb35641fd54c55828d34f77422eb is not running
+Error response from daemon: Container 168f6d502f96598bf220f416b3559363913820ee14f33dbe7960f00fecc748ba is not running
+Error response from daemon: Container 49d8cd0d6f69e79f0d944f30af709f076eb4043a4ff6b21983a75738a92fcd35 is not running
+Error response from daemon: Container ecab62d87c6ebcc169dcdfca940f9a078f2d1762e97462f84765c84aab76e0ab is not running
+Error response from daemon: Container fdc83fba77aad9160319a37872decaaef9209aee945d4033e06d38f309498cf6 is not running
+Error response from daemon: Container 5002feba0eaef53eeff6d33ec7ed6eb18e0990877a31d9ab39bf996a6e8823d2 is not running
+Error response from daemon: Container b19e883219dae17ab558611827df6c59e6b53723626f3ceda9cdbdb43a4418bc is not running
+Error response from daemon: Container b0ccdb490fc92761161a91db4532b6124bbb6d1887a309ca0d8ccfd1fbe1e648 is not running
+Error response from daemon: Container ff066f26b459f54380a99b12ab727c1fce97d88dc16f82bf86125d25f7a0dad8 is not running
+Error response from daemon: Container 5aaf57ebf362e03e78c41275225308d9f7943287702cadbf1007df0c970d84a1 is not running
+Error response from daemon: Container a3d70ef0d56b80aa76976f5c9a2898025470cb35641fd54c55828d34f77422eb is not running
+Error response from daemon: Container 168f6d502f96598bf220f416b3559363913820ee14f33dbe7960f00fecc748ba is not running
+Error response from daemon: Container 49d8cd0d6f69e79f0d944f30af709f076eb4043a4ff6b21983a75738a92fcd35 is not running
+Error response from daemon: Container ecab62d87c6ebcc169dcdfca940f9a078f2d1762e97462f84765c84aab76e0ab is not running
+Error response from daemon: Container fdc83fba77aad9160319a37872decaaef9209aee945d4033e06d38f309498cf6 is not running
+Error response from daemon: Container 5002feba0eaef53eeff6d33ec7ed6eb18e0990877a31d9ab39bf996a6e8823d2 is not running
+Error response from daemon: Container b19e883219dae17ab558611827df6c59e6b53723626f3ceda9cdbdb43a4418bc is not running
+Error response from daemon: Container b0ccdb490fc92761161a91db4532b6124bbb6d1887a309ca0d8ccfd1fbe1e648 is not running
+Error response from daemon: Container ff066f26b459f54380a99b12ab727c1fce97d88dc16f82bf86125d25f7a0dad8 is not running
+Error response from daemon: Container 5aaf57ebf362e03e78c41275225308d9f7943287702cadbf1007df0c970d84a1 is not running
+Error response from daemon: Container a3d70ef0d56b80aa76976f5c9a2898025470cb35641fd54c55828d34f77422eb is not running
+Error response from daemon: Container 168f6d502f96598bf220f416b3559363913820ee14f33dbe7960f00fecc748ba is not running
+Error response from daemon: Container 49d8cd0d6f69e79f0d944f30af709f076eb4043a4ff6b21983a75738a92fcd35 is not running
+Error response from daemon: Container ecab62d87c6ebcc169dcdfca940f9a078f2d1762e97462f84765c84aab76e0ab is not running

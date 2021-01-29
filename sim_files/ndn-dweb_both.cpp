@@ -65,7 +65,7 @@ uint32_t n_requests = 20; // Number of interests shown by each consumer in ndn
 std::string repoPath = "/home/cian/Documents/GitHub/DWeb";
 std::ifstream file(repoPath + "/topologies/topology10.csv");                          // Topology file for both ns-3 and ndn network
 std::ifstream file1(repoPath + "/topologies/topology10.csv");                         // Topology file for ndn network static route. We can use above pointer also but I kept both separately.
-std::ifstream myfile(repoPath + "/requests.txt"); // This is basically names of ndn prefix. ndnSIM require these prefix to identify requests from different consumers. We can aim for one prefix for one published object and can use OID as a prefix also. Need to study how ndn consumer/producer works to integrate it better with blockchain.
+std::ifstream myfile(repoPath + "/txts/requests.txt"); // This is basically names of ndn prefix. ndnSIM require these prefix to identify requests from different consumers. We can aim for one prefix for one published object and can use OID as a prefix also. Need to study how ndn consumer/producer works to integrate it better with blockchain.
 
 namespace ns3
 {
@@ -440,7 +440,7 @@ namespace ns3
     }
 
     ndn::AppHelper consumerHelper("ns3::ndn::ConsumerZipfMandelbrot");
-    consumerHelper.SetAttribute("Frequency", StringValue("2")); // 1 interests a second
+    consumerHelper.SetAttribute("Frequency", StringValue("1")); // 1 interests a second
     // consumerHelper.SetAttribute("NumberOfContents", StringValue(nconts)); // 10 different contents
     consumerHelper.SetAttribute("NumberOfContents", StringValue("2")); // 10 different contents
                                                                        // consumerHelper.SetAttribute("Frequency", StringValue("1"));  // number of interests in a second
@@ -449,9 +449,9 @@ namespace ns3
     std::vector<int> rand_cons;
     for (unsigned int i = 0; i < nLocality; i++)
       rand_cons.push_back(i);
-    //std::random_shuffle(rand_cons.begin(), rand_cons.end());
+    std::random_shuffle(rand_cons.begin(), rand_cons.end());
 
-    //uint32_t xd=nLocality-1;
+    uint32_t xd=nLocality-1;
 
     for (uint32_t i2 = 0; i2 < n_requests; i2++)
     {
@@ -479,9 +479,9 @@ namespace ns3
       producerHelper.Install(nodes.Get(producers_all[ij]));
     }
 
-    Simulator::Stop(Seconds(50.)); // We need to modify time of simulation as per our requirements. We can have more simulation time if we cants to test Ethereum or Docker Container.
+    Simulator::Stop(Seconds(3600)); // We need to modify time of simulation as per our requirements. We can have more simulation time if we cants to test Ethereum or Docker Container.
     ndn::CsTracer::InstallAll("cs-trace.txt", Seconds(1));
-    ndn::AppDelayTracer::InstallAll("app-delays-trace.txt");
+    ndn::AppDelayTracer::InstallAll("app-delays-trace_2.txt");
     //ndn::L3RateTracer::InstallAll("rate-trace.txt", Seconds(1.0));
     //L2RateTracer::InstallAll("drop-trace.txt", Seconds(0.5));
     Simulator::Run();

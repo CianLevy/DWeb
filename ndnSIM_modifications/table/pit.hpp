@@ -28,7 +28,7 @@
 
 #include "pit-entry.hpp"
 #include "pit-iterator.hpp"
-#include "fw/max_gain_path_map.hpp"
+#include "fw/magic_utils.hpp"
 
 namespace nfd {
 namespace pit {
@@ -100,7 +100,7 @@ public:
   deleteInOutRecords(Entry* entry, const Face& face);
 
   void
-  addPopCounter(shared_ptr<PopularityCounter> popCounter) { m_popCounter = popCounter; }
+  addPopCounter(shared_ptr<magic::PopularityCounter> popCounter) { m_popCounter = popCounter; }
 
 public: // enumeration
   typedef Iterator const_iterator;
@@ -140,7 +140,7 @@ private:
 private:
   NameTree& m_nameTree;
   size_t m_nItems = 0;
-  shared_ptr<PopularityCounter> m_popCounter;
+  shared_ptr<magic::PopularityCounter> m_popCounter;
 };
 
 } // namespace pit

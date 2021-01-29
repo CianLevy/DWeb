@@ -37,7 +37,7 @@
 #include "table/strategy-choice.hpp"
 #include "table/dead-nonce-list.hpp"
 #include "table/network-region-table.hpp"
-#include "max_gain_path_map.hpp"
+#include "magic_utils.hpp"
 
 namespace nfd {
 
@@ -293,7 +293,7 @@ private:
   DeadNonceList      m_deadNonceList;
   NetworkRegionTable m_networkRegionTable;
   shared_ptr<Face>   m_csFace;
-  shared_ptr<PopularityCounter> m_popCounter;
+  shared_ptr<magic::PopularityCounter> m_popCounter;
 
   // allow Strategy (base class) to enter pipelines
   friend class fw::Strategy;

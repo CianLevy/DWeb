@@ -57,7 +57,7 @@ Forwarder::Forwarder(FaceTable& faceTable)
   , m_measurements(m_nameTree)
   , m_strategyChoice(*this)
   , m_csFace(face::makeNullFace(FaceUri("contentstore://")))
-  , m_popCounter(make_shared<PopularityCounter>())
+  , m_popCounter(make_shared<magic::PopularityCounter>())
 {
   m_pit.addPopCounter(m_popCounter);
   m_cs.addPopCounter(m_popCounter);
@@ -122,8 +122,11 @@ Forwarder::onIncomingInterest(const FaceEndpoint& ingress, const Interest& inter
     return;
   }
 
-  int local_popularity = m_popCounter->getPopularity(interest.getName());
-  MaxGainPathMap::instance().update(interest.getNonce(), local_popularity);
+  uint32_t local_popularity = m_popCounter->getPopularity(interest.getName());
+
+  // int curr_max = MaxPopularityPathMap::instance().getPopularity(interest.getNonce());
+  // std::cout << "outbound nonce " << interest.getNonce() << " local " << local_popularity << " max " << curr_max << std::endl;
+  magic::MaxPopularityPathMap::instance().update(interest.getNonce(), local_popularity);
 
   // strip forwarding hint if Interest has reached producer region
   if (!interest.getForwardingHint().empty() &&

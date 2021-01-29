@@ -31,7 +31,7 @@
 #include <ndn-cxx/util/concepts.hpp>
 
 #include "table/pit.hpp"
-#include "fw/max_gain_path_map.hpp"
+#include "fw/magic_utils.hpp"
 #include <iostream>
 
 namespace nfd {
@@ -54,7 +54,7 @@ Cs::Cs(size_t nMaxPackets)
 void
 Cs::insert(const Data& data, bool isUnsolicited)
 {
-  if (!isMaxGain(data) || !m_shouldAdmit || m_policy->getLimit() == 0) {
+  if (!m_popCounter->isMaxPopularity(data) || !m_shouldAdmit || m_policy->getLimit() == 0) {
     return;
   }
   NFD_LOG_DEBUG("insert " << data.getName());
@@ -187,29 +187,7 @@ Cs::enableServe(bool shouldServe)
   NFD_LOG_INFO((shouldServe ? "Enabling" : "Disabling") << " Data serving");
 }
 
-bool
-Cs::isMaxGain(const Data& data){
-  typedef ndn::SimpleTag<shared_ptr<nfd::pit::DataMatchResult>, 999> temp;
-  auto tag = data.getTag<temp>();
-  data.removeTag<temp>();
 
-  auto pitMatches = tag->get();
-
-  for (const auto& pitEntry : *pitMatches){
-    uint32_t interest_nonce = pitEntry->getInterest().getNonce();
-    int local_popularity = m_popCounter->getPopularity(pitEntry->getInterest().getName());
-    int max_path_popularity = MaxGainPathMap::instance().getPopularity(interest_nonce);
-  
-    std::cout << "Local popularity: " << local_popularity << " Max on path: " << max_path_popularity << " Nonce: " << interest_nonce << std::endl;
-
-    if (local_popularity >= max_path_popularity && local_popularity > 0){
-      std::cout << "Caching data for: " << pitEntry->getInterest().getName().toUri(ndn::name::UriFormat::DEFAULT) << " Nonce: " << interest_nonce << std::endl;
-      return true;
-    }
-  }
-
-  return false;
-}
 
 } // namespace cs
 } // namespace nfd
