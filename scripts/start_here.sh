@@ -9,19 +9,22 @@ nLocality=10
 
 ip_c_temp=1
 ip_c1_temp=1
-for i in $(seq $nLocality); do
-  if [ $i -gt 32 ]; then
-    if (($i % 32 == 1)); then
-      ip_c1_temp=1
-      ip_c_temp=$(($ip_c_temp + 1))
-    fi
+for i in $(seq $nLocality)
+do
+if [ $i -gt 32 ]
+then
+   if (($i%32==1))
+   then
+     ip_c1_temp=1
+     ip_c_temp=$(($ip_c_temp+1))
+   fi
+   
+fi
+./setting_blocks_network.sh $i $nLocality $ip_c_temp $ip_c1_temp
 
-  fi
-  ./setting_blocks_network.sh $i $nLocality $ip_c_temp $ip_c1_temp
-
-  ip_c1_temp=$(($ip_c1_temp + 1))
+ip_c1_temp=$(($ip_c1_temp+1))
 
 done
 
-# Start the miner node here
-# ./runminer.sh
+# Create a gateway node to get access of blockchain docker container in ndn network
+./gateway_node.sh

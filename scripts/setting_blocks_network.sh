@@ -129,73 +129,21 @@ fi
 BOOTNODE_URL=${BOOTNODE_URL:-$(./getbootnodeurl.sh)}
 echo "Running new container $contname..."
 
-docker run -itd --name ${contname} --network none --publish-all=true  -v $DATA_ROOT:/root/.ethereum -v $DATA_HASH:/root/.ethash -v $(pwd)/genesis.json:/opt/genesis.json $IMGNAME 
 
+if [${i} == "1"]; then
+echo "exposing port"
+docker run --expose 8545 -itd --name ${contname} --network bridge --publish-all=true  -v $DATA_ROOT:/root/.ethereum -v $DATA_HASH:/root/.ethash -v $(pwd)/genesis.json:/opt/genesis.json $IMGNAME 
+else
+docker run -itd --name ${contname} --network bridge --publish-all=true  -v $DATA_ROOT:/root/.ethereum -v $DATA_HASH:/root/.ethash -v $(pwd)/genesis.json:/opt/genesis.json $IMGNAME 
+
+fi
 #docker exec -itd ${contname} geth --nousb --rpc --rpcaddr=0.0.0.0 --rpcport 8545 --rpcapi=db,eth,net,web3,personal --rpccorsdomain "*"
-# Create brdiges to connect docker containers with ns-3 nodes
-sudo brctl addbr br-${contname}
-
-
-# Create tap devices, counting equal to number of containers
-
-
-sudo tunctl -t tap_${contname}
-
-sudo ifconfig tap_${contname} 0.0.0.0 promisc up
-
-
-# Connecting tap devices and bridges
-
-
-sudo brctl addif br-${contname} tap_${contname}
-sudo ifconfig br-${contname} 192.168.${ip_c}.${ipbr_cont[ip_c1]} netmask 255.255.255.248 up   #IP address of bridge, also change IP address of VM Machine
-sudo ifconfig br-${contname} up
-
-# Allow traffic across bridges
-
-pushd /proc/sys/net/bridge
-for f in bridge-nf-*; do echo 0 > $f; done
-popd
-
-# Start all container, sometime some docker stops automatically
-
-#sudo docker container start $(docker container ls -aq)
-
-#Find the pid of containers
-
-
-pidmulti=$(docker inspect --format '{{ .State.Pid }}' ${contname})
-
-# Setting namespaces and interfaces with MAC and IP address for Other blocks
-
-sudo mkdir -p /var/run/netns
-ln -s /proc/$pidmulti/ns/net /var/run/netns/$pidmulti
-
-
-#Now, We need to create "peer" interfaces: internal-left and external-left. The internal-left will be attached with the bridge.
-
-sudo ip link add internal${i} type veth peer name external${i}
-sudo brctl addif br-${contname} internal${i}
-sudo ip link set internal${i} up
-
-# Random MAC address
-hexchars="0123456789ABCDEF"
-end=$( for i in {1..8} ; do echo -n ${hexchars:$(( $RANDOM % 16 )):1} ; done | sed -e 's/\(..\)/:\1/g' )
-MAC_ADDR="12:34"$end
-
-sudo ip link set external${i} netns $pidmulti
-sudo ip netns exec $pidmulti ip link set dev external${i} name eth0
-sudo ip netns exec $pidmulti ip link set eth0 address $MAC_ADDR
-sudo ip netns exec $pidmulti ip link set eth0 up
-sudo ip netns exec $pidmulti ip addr add 192.168.${ip_c}.${ip_cont[ip_c1]}/29 dev eth0    #IP address of VM Machine also change IP address of bridge
-sudo ip netns exec $pidmulti ip route add default via 192.168.${ip_c}.${ipbr_rot[ip_c1]} dev eth0;
-
-
-
 
 # Connect the ethereum nodes with peers using bootnode
 
 
+
+#docker exec -itd ${contname} geth --networkid 987 --syncmode=fast --nousb --rpc --rpcaddr=0.0.0.0 --rpcport 8545 --rpcapi=db,eth,net,web3,personal --rpccorsdomain "*" init /opt/genesis.json
 
 docker exec -itd ${contname} geth --networkid 987 --syncmode=fast --nousb --rpc --rpcaddr=0.0.0.0 --rpcport 8545 --rpcapi=db,eth,net,web3,personal --rpccorsdomain "*" init /opt/genesis.json
 
@@ -209,7 +157,7 @@ docker cp pass_file.txt ${contname}:/pass_file.txt
 #docker exec -it ${contname} pkill -f "geth"
 docker exec -itd ${contname} geth account new --password pass_file.txt
 docker exec -itd ${contname} geth --password pass_file.txt --unlock primary --rpccorsdomain localhost --verbosity 4 2>> geth.log
-docker exec -itd ${contname} geth --mine
+docker exec -itd ${contname} geth --mine --minerthreads 1
 
 
 

@@ -1,5 +1,5 @@
 #!/bin/bash
-IMGNAME="ethereum/client-go:v1.8.12"
+IMGNAME="ethereum/client-go:v1.8.25"
 NODE_NAME=$1
 NODE_NAME=${NODE_NAME:-"node1"}
 DETACH_FLAG=${DETACH_FLAG:-"-d"}
@@ -37,7 +37,7 @@ docker run $DETACH_FLAG --name $CONTAINER_NAME \
     -v $DATA_HASH:/root/.ethash \
     -v $(pwd)/genesis.json:/opt/genesis.json \
     $RPC_PORTMAP \
-    $IMGNAME --bootnodes=$BOOTNODE_URL $RPC_ARG --cache=512 --verbosity=4 --maxpeers=3 ${@:2}
+    $IMGNAME --bootnodes=$BOOTNODE_URL $RPC_ARG --cache=512 --verbosity=4 --maxpeers=50 ${@:2}
 
 # Create tap devices, counting equal to number of containers
 
@@ -93,4 +93,19 @@ sudo ip netns exec $pid_miner ip link set eth0 address $MAC_ADDR
 sudo ip netns exec $pid_miner ip link set eth0 up
 sudo ip netns exec $pid_miner ip addr add 192.168.0.14/29 dev eth0   #IP address of VM Machine also change IP address of bridge
 sudo ip netns exec $pid_miner ip route add default via 192.168.0.10 dev eth0
+
+# Connect the ethereum nodes with peers using bootnode
+
+#docker exec -itd ${CONTAINER_NAME} geth --bootnodes=$BOOTNODE_URL
+
+# Create a new account in each ethereum nodes
+
+docker cp pass_file.txt ${CONTAINER_NAME}:/pass_file.txt
+echo  ${CONTAINER_NAME}> pass_file.txt
+docker cp pass_file.txt ${CONTAINER_NAME}:/pass_file.txt
+#docker exec -it ${CONTAINER_NAME} pkill -f "geth"
+docker exec -it ${CONTAINER_NAME} geth account new --password pass_file.txt
+docker exec -it ${CONTAINER_NAME} geth --password pass_file.txt --unlock primary --rpccorsdomain localhost --verbosity 4 2>> geth.log
+docker exec -it ${CONTAINER_NAME} geth --mine
+
 

@@ -11,6 +11,11 @@ sudo brctl delbr br-miner
 sudo tunctl -d tap_miner
 sudo ip link delete internal-miner
 
+sudo ip link set br-gate down
+sudo brctl delif br-gate tap_gate
+sudo brctl delbr br-gate
+sudo tunctl -d tap_gate
+sudo ip link delete internal1
 
 nLocality=12
 for ((i = 1; i <= nLocality; i++))
