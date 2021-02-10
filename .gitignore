@@ -43,3 +43,8 @@ output
 .vscode
 /backup
 /original_files
+/eth/node_modules
+/eth/__pycache__
+/eth/test
+/scripts/geth.log
+/temp_files

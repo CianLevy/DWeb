@@ -55,6 +55,8 @@ public:
   explicit
   Forwarder(FaceTable& faceTable);
 
+  Forwarder(FaceTable& faceTable, std::string id);
+
   VIRTUAL_WITH_TESTS
   ~Forwarder();
 
@@ -294,6 +296,7 @@ private:
   NetworkRegionTable m_networkRegionTable;
   shared_ptr<Face>   m_csFace;
   shared_ptr<magic::PopularityCounter> m_popCounter;
+  std::string           m_id = "null";
 
   // allow Strategy (base class) to enter pipelines
   friend class fw::Strategy;

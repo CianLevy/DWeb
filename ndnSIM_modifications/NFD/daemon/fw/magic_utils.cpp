@@ -2,30 +2,39 @@
 #include "common/logger.hpp"
 #include <ndn-cxx/lp/tags.hpp>
 #include "table/pit.hpp"
+#include <string>
 
 namespace nfd {
 namespace magic {
 
 NFD_LOG_INIT(Magic);
 
-void MaxPopularityPathMap::update(uint32_t nonce, uint32_t local_popularity){
-    NFD_LOG_DEBUG(nonce << " outbound max " << MaxPopularityPathMap::instance().getPopularity(nonce) << " local " << local_popularity);
+void MaxPopularityPathMap::update(uint32_t nonce, uint32_t local_popularity, std::string curr_id, ndn::Name n){
+    NFD_LOG_DEBUG(curr_id << " " << nonce << " outbound max " \
+                  << MaxPopularityPathMap::instance().getPopularity(nonce, curr_id) \
+                  << " local " << local_popularity << " req " << n);
     
-    std::map<uint32_t, uint32_t>::iterator it = requestHistoryMap.find(nonce);
+    std::map<uint32_t, std::pair<uint32_t, std::string>>::iterator it = requestHistoryMap.find(nonce);
 
     if (it != requestHistoryMap.end()){
-        if (local_popularity > it->second)
-            it->second = local_popularity;
+        if (local_popularity > it->second.first)
+            it->second.first = local_popularity;
     } else{
-        requestHistoryMap[nonce] = local_popularity;
+        // initial popularity should be 0?
+        requestHistoryMap[nonce] = make_pair(0, curr_id);
     }       
 }
 
-uint32_t MaxPopularityPathMap::getPopularity(uint32_t nonce){
-    std::map<uint32_t, uint32_t>::iterator it = requestHistoryMap.find(nonce);
+uint32_t MaxPopularityPathMap::getPopularity(uint32_t nonce, std::string curr_id){
+    std::map<uint32_t, std::pair<uint32_t, std::string>>::iterator it = requestHistoryMap.find(nonce);
 
     if (it != requestHistoryMap.end()){
-        return it->second;
+        uint32_t res = it->second.first;
+
+        if (it->second.second == curr_id)
+            requestHistoryMap.erase(it);
+        
+        return res;
     } else{
         return 0;
     }
@@ -40,6 +49,9 @@ uint32_t PopularityCounter::getPopularity(ndn::Name n){
 
         if (temp->size() > 1){
             double elapsed_time = std::chrono::duration<double, std::milli>(temp->back() - temp->front()).count() / 1000;
+
+            elapsed_time = (elapsed_time < 5) ? 5 : elapsed_time;
+
             uint32_t res = 0;
 
             if (elapsed_time)
@@ -94,19 +106,50 @@ bool PopularityCounter::isMaxPopularity(const ndn::Data& data){
 
   auto pitMatches = tag->get();
 
+  bool res = false;
+
   for (const auto& pitEntry : *pitMatches){
     uint32_t interest_nonce = pitEntry->getInterest().getNonce();
     int local_popularity = getPopularity(pitEntry->getInterest().getName());
-    int max_path_popularity = MaxPopularityPathMap::instance().getPopularity(interest_nonce);
+    int max_path_popularity = MaxPopularityPathMap::instance().getPopularity(interest_nonce, id);
     
-    NFD_LOG_DEBUG(interest_nonce << " return max " << max_path_popularity << " local " << local_popularity);
+    NFD_LOG_DEBUG(id << " " << interest_nonce << " return max " << \
+                  max_path_popularity << " local " << local_popularity << " req " << data.getName());
 
-    if (local_popularity >= max_path_popularity && local_popularity > 0){
-        return true;
-    }
+    // if (local_popularity >= max_path_popularity && local_popularity > 0){
+    //     return false; // TO DO FIX
+    // }
   }
 
   return false;
+}
+
+
+MAGICParams::MAGICParams(const ndn::Block& parameters){
+    // content = std::string((char*)value);
+    bool encountered_start = false;
+
+    for (auto val : parameters){
+        char current = (char)val;
+
+        if (current == 'N')
+            encountered_start = true;
+
+        if (encountered_start)
+            content += current;
+    }
+        
+}
+
+const uint8_t* MAGICParams::encode(){
+    if (content != "")
+        return reinterpret_cast<const uint8_t*>(&content[0]);
+    else
+        return nullptr;
+}
+
+void MAGICParams::insertHop(std::string id){
+    content += " " + id;
 }
 
 }

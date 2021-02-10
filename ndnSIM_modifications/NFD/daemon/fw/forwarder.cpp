@@ -94,6 +94,13 @@ Forwarder::Forwarder(FaceTable& faceTable)
   m_strategyChoice.setDefaultStrategy(getDefaultStrategyName());
 }
 
+Forwarder::Forwarder(FaceTable& faceTable, std::string id)
+  : Forwarder(faceTable)
+{
+  m_id = id;
+  m_popCounter->setId(m_id);
+}
+
 Forwarder::~Forwarder() = default;
 
 void
@@ -126,7 +133,7 @@ Forwarder::onIncomingInterest(const FaceEndpoint& ingress, const Interest& inter
 
   // int curr_max = MaxPopularityPathMap::instance().getPopularity(interest.getNonce());
   // std::cout << "outbound nonce " << interest.getNonce() << " local " << local_popularity << " max " << curr_max << std::endl;
-  magic::MaxPopularityPathMap::instance().update(interest.getNonce(), local_popularity);
+  magic::MaxPopularityPathMap::instance().update(interest.getNonce(), local_popularity, m_id, interest.getName());
 
   // strip forwarding hint if Interest has reached producer region
   if (!interest.getForwardingHint().empty() &&
@@ -135,6 +142,28 @@ Forwarder::onIncomingInterest(const FaceEndpoint& ingress, const Interest& inter
                   << " interest=" << interest.getName() << " reaching-producer-region");
     const_cast<Interest&>(interest).setForwardingHint({});
   }
+
+  magic::MAGICParams* params = nullptr;
+
+  if (interest.hasApplicationParameters()){
+    auto hops = interest.getApplicationParameters();
+    params = new magic::MAGICParams(hops);
+    std::cout << m_id << " previous hops " << params->getParams() << std::endl;
+  }
+  else{
+    std::cout << m_id << "starting hop" << std::endl;
+    params = new magic::MAGICParams();
+  }
+  params->insertHop(m_id);
+
+
+  // std::shared_ptr<Interest> new_interest = make_shared<Interest>(interest.wireEncode());
+  Interest* non_const_interest = (Interest*)&interest;
+  size_t len = params->getParams().size();
+  // non_const_interest->setApplicationParameters(params->encode(), len);
+  // new_interest->setForwardingHint(interest.getForwardingHint());
+  // new_interest->setTag(make_shared<lp::IncomingFaceIdTag>(ingress.face.getId()));
+  
 
   // PIT insert
   shared_ptr<pit::Entry> pitEntry = m_pit.insert(interest).first;
@@ -256,7 +285,7 @@ void
 Forwarder::onOutgoingInterest(const shared_ptr<pit::Entry>& pitEntry,
                               const FaceEndpoint& egress, const Interest& interest)
 {
-  NFD_LOG_DEBUG("onOutgoingInterest out=" << egress << " interest=" << pitEntry->getName());
+  NFD_LOG_DEBUG("onOutgoingInterest out=" << egress << " interest=" << pitEntry->getName() << " nonce " << interest.getNonce());
 
   // insert out-record
   pitEntry->insertOrUpdateOutRecord(egress.face, interest);
