@@ -29,7 +29,7 @@ docker run -p 127.0.0.1:8545:8545 -itd --name ${contname} --network bridge --pub
 
 docker exec -it ${contname} apk add gcc libc-dev python3-dev python3 py3-pip busybox-extras 
 docker exec -it ${contname} pip3 install web3
-
+docker cp /home/cian/Documents/GitHub/DWeb/eth multi_gateway:/eth
 #docker exec -itd ${contname} geth --nousb --rpc --rpcaddr=0.0.0.0 --rpcport 8545 --rpcapi=db,eth,net,web3,personal --rpccorsdomain "*"
 
 # Connect the ethereum nodes with peers using bootnode

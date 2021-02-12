@@ -143,23 +143,25 @@ Forwarder::onIncomingInterest(const FaceEndpoint& ingress, const Interest& inter
     const_cast<Interest&>(interest).setForwardingHint({});
   }
 
-  magic::MAGICParams* params = nullptr;
+  // magic::MAGICParams* params = nullptr;
 
-  if (interest.hasApplicationParameters()){
-    auto hops = interest.getApplicationParameters();
-    params = new magic::MAGICParams(hops);
-    std::cout << m_id << " previous hops " << params->getParams() << std::endl;
-  }
-  else{
-    std::cout << m_id << "starting hop" << std::endl;
-    params = new magic::MAGICParams();
-  }
-  params->insertHop(m_id);
+  // if (interest.hasApplicationParameters()){
+  //   auto hops = interest.getApplicationParameters();
+  //   params = new magic::MAGICParams(hops);
+  //   std::cout << m_id << " previous hops " << params->getParams() << std::endl;
+  // }
+  // else{
+  //   std::cout << m_id << "starting hop" << std::endl;
+  //   params = new magic::MAGICParams();
+  // }
+  // params->insertHop(m_id);
 
 
   // std::shared_ptr<Interest> new_interest = make_shared<Interest>(interest.wireEncode());
-  Interest* non_const_interest = (Interest*)&interest;
-  size_t len = params->getParams().size();
+
+  // Interest* non_const_interest = (Interest*)&interest;
+  // size_t len = params->getParams().size();
+
   // non_const_interest->setApplicationParameters(params->encode(), len);
   // new_interest->setForwardingHint(interest.getForwardingHint());
   // new_interest->setTag(make_shared<lp::IncomingFaceIdTag>(ingress.face.getId()));

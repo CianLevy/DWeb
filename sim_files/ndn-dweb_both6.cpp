@@ -53,12 +53,17 @@ Modified by: Raman Singh <rasingh@tcd.ie>,<raman.singh@thapar.edu> Post Doctoral
 #include "ns3/olsr-helper.h"
 #include "ns3/ipv4-static-routing-helper.h"
 #include "ns3/ipv4-list-routing-helper.h"
+#include "ndn-dweb_both6/udp-client.hpp"
 #include <iostream>
 #include <ctime>
 #include <cstdlib>
 #include <vector>
 #include <sstream>
 #include <fstream>
+
+
+#include "ns3/ptr.h"
+#include "ndn-dweb_both6/dweb-producer.hpp"
 
 uint32_t nLocality = 10;  //Number of gateway routers
 uint32_t n_requests = 20; // Number of interests shown by each consumer in ndn
@@ -163,7 +168,6 @@ namespace ns3
     // Install NDN applications
     std::string prefix = "/prefix";
 
-
     ndn::AppHelper consumerHelper("ns3::ndn::ConsumerCbr");
     // Consumer will request /prefix/0, /prefix/1, ...
     consumerHelper.SetPrefix("/prefix");
@@ -172,28 +176,38 @@ namespace ns3
     consumerHelper.Install(nodes.Get(3));                        // first node
 
     // Producer
-    ndn::AppHelper producerHelper("ns3::ndn::Producer");
+    ndn::AppHelper producerHelper("DWebProducer");
     // Producer will reply to all requests starting with /prefix
     ndnGlobalRoutingHelper.AddOrigins(prefix, nodes.Get(2));
     producerHelper.SetPrefix("/prefix");
     producerHelper.SetAttribute("PayloadSize", StringValue("1024"));
-    producerHelper.Install(nodes.Get(2)); // last node
+    ApplicationContainer temp = producerHelper.Install(nodes.Get(2)); // last node
+   
+    // ns3::ndn::DWebProducer* temp2 = GetPointer<ns3::ndn::DWebProducer>(temp.Get(0));
+    // Ptr<ns3::ndn::DWebProducer> temp2 = const_pointer_cast<ns3::ndn::DWebProducer>(temp.Get(0));
+    // temp2->m_udpClient = make_shared<UDPClient>();
     
+    UDPClient::instance().connect(tempNodes0.Get(1), "192.168.1.6", 3000);
+  
+    // Ptr<UDPClient> udpClient(CreateObject<UDPClient>());
+    //udpClient->connect(nodes.Get(2), "192.168.1.6", 3000);
+    // producerHelper.SetAttribute("m_udpClient", PointerValue(udpClient));
 
-    std::string remote1 ("192.168.1.6");
-    Ipv4Address remoteIp1 (remote1.c_str ());
-    uint16_t port1 = 3000;
-    UdpEchoClientHelper client2 (remoteIp1, port1);
-    //client.SetAttribute ("MaxPackets", UintegerValue (maxPacketCount));
-    // client2.SetAttribute ("Interval", TimeValue (100));
-    std::ostringstream msg;
-    msg << "Hello Docker Container! How are you there\n" << '\0';
-    client2.SetAttribute ("PacketSize", UintegerValue (msg.str().length()));
-    // Ptr packet = Create<Packet> (, );
-    ApplicationContainer apps2 = client2.Install (tempNodes0.Get(1));
-    apps2.Start (Seconds (0.5));
-    apps2.Stop (Seconds (10.0));
-    client2.SetFill (apps2.Get (0), (uint8_t*) msg.str().c_str(), msg.str().length(), msg.str().length());
+
+    // std::string remote1 ("192.168.1.6");
+    // Ipv4Address remoteIp1 (remote1.c_str ());
+    // uint16_t port1 = 3000;
+    // UdpEchoClientHelper client2 (remoteIp1, port1);
+    // //client.SetAttribute ("MaxPackets", UintegerValue (maxPacketCount));
+    // // client2.SetAttribute ("Interval", TimeValue (100));
+    // std::ostringstream msg;
+    // msg << "Hello Docker Container! How are you there\n" << '\0';
+    // client2.SetAttribute ("PacketSize", UintegerValue (msg.str().length()));
+    // // Ptr packet = Create<Packet> (, );
+    // ApplicationContainer apps2 = client2.Install (tempNodes0.Get(1));
+    // apps2.Start (Seconds (0.5));
+    // apps2.Stop (Seconds (10.0));
+    // client2.SetFill (apps2.Get (0), (uint8_t*) msg.str().c_str(), msg.str().length(), msg.str().length());
 
 
 

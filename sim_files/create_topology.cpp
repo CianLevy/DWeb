@@ -48,7 +48,6 @@
 #include "ns3/olsr-helper.h"
 #include "ns3/ipv4-static-routing-helper.h"
 #include "ns3/ipv4-routing-protocol.h"
-#include "myapp.h"
 #include "ns3/dsr-module.h"
 #include "ns3/flow-monitor-module.h"
 #include "ns3/csma-module.h"
