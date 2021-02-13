@@ -73,6 +73,28 @@ private:
   uint32_t packet_len = 10;
   int count = 0;
 
+  std::map<std::string, int> OIDtoMetadata;
+
+  void
+  publishDataOnBlockchain(std::string metadata, shared_ptr<::ndn::Buffer> data, uint32_t callback_id);
+
+  shared_ptr<::ndn::Buffer>
+  createData(std::string metadata);
+
+  void
+  successfulBlockchainPublishCallback(std::vector<std::string> split_response);
+
+  void
+  publishAndAdvertise(std::string metadata);
+
+  void
+  recordPublishedOID(std::string metadata, std::string oid);
+
+  int
+  lookupOID(std::string oid);
+
+  void
+  publishInitialObjects();
 };
 
 }

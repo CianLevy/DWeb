@@ -30,6 +30,8 @@
 
 #include <memory>
 #include <string>
+#include "ns3/nstime.h"
+
 
 NS_LOG_COMPONENT_DEFINE("DWebProducer");
 
@@ -72,7 +74,18 @@ DWebProducer::GetTypeId(void)
 
 DWebProducer::DWebProducer()
 {
+  // m_virtualPayloadSize = 1024;
   NS_LOG_FUNCTION_NOARGS();
+
+}
+
+
+void
+DWebProducer::publishInitialObjects(){
+  for (int i = 0; i < 10; ++i){
+      std::string metadata(std::to_string(i));
+      publishAndAdvertise(metadata);
+  }
 }
 
 // inherited from Application base class.
@@ -82,6 +95,7 @@ DWebProducer::StartApplication()
   NS_LOG_FUNCTION_NOARGS();
   App::StartApplication();
 
+  Simulator::Schedule (Time(Seconds(1)), &DWebProducer::publishInitialObjects, this);
   FibHelper::AddRoute(GetNode(), m_prefix, m_face, 0);
 }
 
@@ -96,12 +110,6 @@ DWebProducer::StopApplication()
 void
 DWebProducer::OnInterest(shared_ptr<const Interest> interest)
 {
-  if (count == 0){
-    shared_ptr<Name> new_prefix = make_shared<Name>(m_prefix);
-    new_prefix->append("test");
-    FibHelper::AddRoute(GetNode(), *new_prefix, m_face, 0);
-    count++;
-  }
   App::OnInterest(interest); // tracing inside
 
   NS_LOG_FUNCTION(this << interest);
@@ -113,40 +121,19 @@ DWebProducer::OnInterest(shared_ptr<const Interest> interest)
   // dataName.append(m_postfix);
   // dataName.appendVersion();
   
-
   auto data = make_shared<Data>();
   data->setName(dataName);
   data->setFreshnessPeriod(::ndn::time::milliseconds(m_freshness.GetMilliSeconds()));
 
-  shared_ptr<::ndn::Buffer> buffer = make_shared<::ndn::Buffer>(m_virtualPayloadSize);
-  std::string name = dataName[-1].toUri(ndn::name::UriFormat::DEFAULT);
+  int metadata = lookupOID(dataName[dataName.size() - 2].toUri(ndn::name::UriFormat::DEFAULT));
 
-  // name.erase(std::remove(name.begin(), name.end(), "%FE%"), name.end());
-  std::cout << "Producing " << dataName << std::endl;
-  
-  std::string start = "%FE%";
-  std::string::size_type i = name.find(start);
+  // if (metadata == -1)
+  // // 
+  //   return;
 
-  if (i != std::string::npos)
-    name.erase(i, start.length());
-
-
-  for (size_t i = 0; i < m_virtualPayloadSize; ++i){
-    // for (char c : name){
-    for (int j = 0; j < name.size(); ++j){
-      if (i >= m_virtualPayloadSize)
-        break;
-      
-      buffer->at(i) = name[j];
-
-      if (j < name.size() - 1)
-        i++;
-    }
-  }
-
+  shared_ptr<::ndn::Buffer> buffer = createData(std::to_string(metadata));
   data->setContent(buffer);
-  char* temp = (char*)&(*buffer)[0];
-  UDPClient::instance().sendData("set/producer_id/" + name + "/" + temp);
+
 
   Signature signature;
   SignatureInfo signatureInfo(static_cast< ::ndn::tlv::SignatureTypeValue>(255));
@@ -167,6 +154,85 @@ DWebProducer::OnInterest(shared_ptr<const Interest> interest)
 
   m_transmittedDatas(data, this, m_face);
   m_appLink->onReceiveData(*data);
+}
+
+void
+DWebProducer::publishDataOnBlockchain(std::string metadata, shared_ptr<::ndn::Buffer> data, uint32_t callback_id){
+  char* temp = (char*)&(*data)[0];
+  std::string test(temp);
+  UDPClient::instance().sendData("set/" + std::to_string(callback_id) + "/" + std::to_string(GetNode()->GetId()) + "/" + metadata + "/" + test + "\n");
+
+  std::cout << "Attempting to publish " << metadata << std::endl;
+}
+
+shared_ptr<::ndn::Buffer>
+DWebProducer::createData(std::string metadata){
+
+    shared_ptr<::ndn::Buffer> buffer = make_shared<::ndn::Buffer>(m_virtualPayloadSize);
+
+    for (size_t i = 0; i < m_virtualPayloadSize; ++i){
+        for (size_t j = 0; j < metadata.size(); ++j){
+        if (i >= m_virtualPayloadSize)
+            break;
+        
+        buffer->at(i) = metadata[j];
+
+        if (j < metadata.size() - 1)
+            i++;
+        }
+    }
+    return buffer;
+}
+
+void
+DWebProducer::publishAndAdvertise(std::string metadata){
+    uint32_t callback_id = UDPClient::instance().getCallbackID();
+    shared_ptr<::ndn::Buffer> data = createData(metadata);
+    publishDataOnBlockchain(metadata, data, callback_id);
+
+    UDPClient::instance().registerReceiveCallback(MakeCallback(&DWebProducer::successfulBlockchainPublishCallback, this), callback_id);
+}
+
+void
+DWebProducer::successfulBlockchainPublishCallback(std::vector<std::string> split_response){
+    std::string oid = split_response.at(2);
+
+    if (oid != "None"){
+      shared_ptr<Name> prefix = make_shared<Name>(m_prefix);
+      prefix->append(oid);
+      FibHelper::AddRoute(GetNode(), *prefix, m_face, 0);
+      std::cout << "Published new oid " << *prefix << std::endl;
+
+      // this is a hacky assumption about the reseponse structure being
+      // "oid/<oid val>/<metadata>"
+      // should be fixed
+      recordPublishedOID(split_response.at(3), oid);
+    }
+}
+
+void
+DWebProducer::recordPublishedOID(std::string metadata, std::string oid){
+  int metadata_conv = std::stoi(metadata);
+
+  int curr_metadata = lookupOID(oid);
+
+  if (curr_metadata == -1){
+    OIDtoMetadata[oid] = metadata_conv;
+    bool test = lookupOID(oid) == metadata_conv;
+    std::cout << "test " << test << std::endl;
+  }
+
+  else
+    std::cout << "Attempted to re-record metadata value for oid: " << oid << std::endl;
+}
+
+int
+DWebProducer::lookupOID(std::string oid){
+  std::map<std::string, int>::iterator it = OIDtoMetadata.find(oid);
+  if (it != OIDtoMetadata.end())
+    return it->second;
+  else
+    return -1;
 }
 
 } // namespace ndn
