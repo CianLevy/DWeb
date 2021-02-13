@@ -29,7 +29,7 @@ class UDPDatagramProcessingProtocol:
 
     def datagram_received(self, data, addr) -> "Main entrypoint for processing message":
         if self.processing_func:
-            self.processing_func(data)
+            self.processing_func(data, addr)
 
     def register_datagram_processing_callback(self, callback_func):
         self.processing_func = callback_func
@@ -43,16 +43,24 @@ class RequestHandler:
         # import pdb; pdb.set_trace()
         split_req = req.split('/')
 
-        if 'set' in req and len(split_req) == 4:
-            self.ethereum_wrapper.set_object_data(split_req[3], split_req[2], split_req[1])
-            # 'set' request structure is: set/producer_id/metadata/data
-            logger.info(f"Processed set for {req}")
-            return None
-        elif 'get' in req and len(split_req) == 2:
-            # 'get' request structure is: get/metadata
-            res = self.ethereum_wrapper.get_object_data(split_req[1])
-            logger.info(f"Processed get for {req} returning {res}")
-            return "oid/" + res
+        if 'set' in req and len(split_req) == 5:
+            res = self.ethereum_wrapper.set_object_data(split_req[4], split_req[3], split_req[2])
+            # 'set' request structure is: set/req_id/producer_id/metadata/data
+            logger.debug(f"Processed set for {req}")
+            return f"{split_req[1]}/oid/{res}/{split_req[3]}"
+
+        elif 'get' in req and len(split_req) == 3:
+            # 'get' request structure is: get/req_id/metadata
+            res = self.ethereum_wrapper.get_object_data(split_req[2])
+            logger.debug(f"Processed get for {req} returning {res}")
+            return f"{split_req[1]}/oid/{res}/{split_req[2]}"
+            # split_req[1] + "/oid/" + res "/" + (split_req[2]
+
+        elif 'verify' in req and len(split_req) == 5:
+            # verify/req_id/oid/metadata/data
+            res = self.ethereum_wrapper.verify_object(split_req[2], split_req[3], split_req[4])
+
+            return f"{split_req[1]}/oid/{res}/{split_req[2]}"
         else:
             logger.error(f'Received unknown request {req}')
             return None
@@ -81,28 +89,26 @@ class UDPServer:
         self.loop.run_forever()
 
 
-    def recieve(self, data):
-        self.loop.create_task(self.recieve2(data))
+    def recieve(self, data, addr):
+        self.loop.create_task(self.recieve2(data, addr))
 
-    async def recieve2(self, data):
-        logger.info(f"Recieved {data}")
-        res = await self.req_handler.process_req(data.decode())
+    async def recieve2(self, data, addr):
+        logger.debug(f"Recieved {data}")
+        decoded_data = None
+
+        try:
+            decoded_data = data.decode()
+        except UnicodeDecodeError:
+            decoded_data = data[:len(data)- 7].decode()
+
+        res = await self.req_handler.process_req(decoded_data)
 
         if res:
-            self.send(res)
-
-    # def datagram_received(self, data, addr):
-    #     loop = asyncio.get_event_loop()
-    #     loop.create_task(self.handle_income_packet(data, addr))
+            self.send(res, addr)
 
 
-    # async def handle_income_packet(self, data, addr):
-    #     # echo back the message, but 2 seconds later
-    #     await asyncio.sleep(2)
-    #     self.transport.sendto(data, addr)
-
-    def send(self, message):
-        self.socket.sendto(message.encode(), (self.host_addr, self.port))
+    def send(self, message, addr):
+        self.socket.sendto(message.encode(), addr)
 
 
 
@@ -110,4 +116,4 @@ logging.basicConfig(level=logging.INFO)
 
 
 if __name__ == '__main__':
-    server = UDPServer("localhost", 3000)
+    server = UDPServer("192.168.1.6", 3000)

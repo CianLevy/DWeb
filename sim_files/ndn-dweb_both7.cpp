@@ -64,6 +64,9 @@ Modified by: Raman Singh <rasingh@tcd.ie>,<raman.singh@thapar.edu> Post Doctoral
 #include "ns3/ptr.h"
 #include "ndn-dweb_both7/dweb-producer.hpp"
 
+#include <chrono>
+#include <thread>
+
 uint32_t nLocality = 10;  //Number of gateway routers
 uint32_t n_requests = 20; // Number of interests shown by each consumer in ndn
 std::string repoPath = "/home/cian/Documents/GitHub/DWeb";
@@ -105,8 +108,8 @@ namespace ns3
 
     // These instructions set the default value of P2P network parameters like bandwidth, latency and Queue size.
     Config::SetDefault("ns3::PointToPointNetDevice::DataRate", StringValue("200Mbps"));
-    Config::SetDefault("ns3::PointToPointChannel::Delay", StringValue("5ms"));
-    Config::SetDefault("ns3::QueueBase::MaxSize", StringValue("20p"));
+    Config::SetDefault("ns3::PointToPointChannel::Delay", StringValue("0ms"));
+    Config::SetDefault("ns3::QueueBase::MaxSize", StringValue("200p"));
 
     //Enable packet metadata, this will be used for tracing purpose.
     Packet::EnablePrinting();
@@ -171,11 +174,11 @@ namespace ns3
     // Consumer will request /prefix/0, /prefix/1, ...
     consumerHelper.SetPrefix("/prefix");
     consumerHelper.SetAttribute("Frequency", StringValue("1")); // 10 interests a second
-    consumerHelper.SetAttribute("MaxSeq", IntegerValue(4));
-    consumerHelper.SetAttribute("NumberOfContents", StringValue("10")); // 10 different contents
+    consumerHelper.SetAttribute("MaxSeq", IntegerValue(400));
+    consumerHelper.SetAttribute("NumberOfContents", StringValue("100")); // 10 different contents
     consumerHelper.Install(nodes.Get(3));                        // first node
 
-    consumerHelper.SetPrefix("/prefix/test");
+    consumerHelper.SetPrefix("/prefix");
     consumerHelper.Install(nodes.Get(0));  
 
     // Producer
@@ -186,38 +189,11 @@ namespace ns3
     producerHelper.SetAttribute("PayloadSize", StringValue("1024"));
     ApplicationContainer temp = producerHelper.Install(nodes.Get(2)); // last node
    
-    // ns3::ndn::DWebProducer* temp2 = GetPointer<ns3::ndn::DWebProducer>(temp.Get(0));
-    // Ptr<ns3::ndn::DWebProducer> temp2 = const_pointer_cast<ns3::ndn::DWebProducer>(temp.Get(0));
-    // temp2->m_udpClient = make_shared<UDPClient>();
-    
     UDPClient::instance().connect(tempNodes0.Get(1), "192.168.1.6", 3000);
-    // UDPClient::instance().sendData("testingsendget/1");
-    // std::string res = UDPClient::instance().receive();
-    // Ptr<UDPClient> udpClient(CreateObject<UDPClient>());
-    //udpClient->connect(nodes.Get(2), "192.168.1.6", 3000);
-    // producerHelper.SetAttribute("m_udpClient", PointerValue(udpClient));
-
-
-    // std::string remote1 ("192.168.1.6");
-    // Ipv4Address remoteIp1 (remote1.c_str ());
-    // uint16_t port1 = 3000;
-    // UdpEchoClientHelper client2 (remoteIp1, port1);
-    // //client.SetAttribute ("MaxPackets", UintegerValue (maxPacketCount));
-    // // client2.SetAttribute ("Interval", TimeValue (100));
-    // std::ostringstream msg;
-    // msg << "Hello Docker Container! How are you there\n" << '\0';
-    // client2.SetAttribute ("PacketSize", UintegerValue (msg.str().length()));
-    // // Ptr packet = Create<Packet> (, );
-    // ApplicationContainer apps2 = client2.Install (tempNodes0.Get(1));
-    // apps2.Start (Seconds (0.5));
-    // apps2.Stop (Seconds (10.0));
-    // client2.SetFill (apps2.Get (0), (uint8_t*) msg.str().c_str(), msg.str().length(), msg.str().length());
-
-
 
     ndn::GlobalRoutingHelper::CalculateRoutes();
 
-    Simulator::Stop(Seconds(10)); // We need to modify time of simulation as per our requirements. We can have more simulation time if we cants to test Ethereum or Docker Container.
+    Simulator::Stop(Seconds(30)); // We need to modify time of simulation as per our requirements. We can have more simulation time if we cants to test Ethereum or Docker Container.
     ndn::CsTracer::InstallAll("cs-trace.txt", Seconds(1));
     ndn::AppDelayTracer::InstallAll("app-delays-trace_3.txt");
     //ndn::L3RateTracer::InstallAll("rate-trace.txt", Seconds(1.0));

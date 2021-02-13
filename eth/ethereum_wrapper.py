@@ -19,7 +19,11 @@ class SearchEngine:
         return self.indexed_objects.get(metadata)
 
     def index_object(self, metadata, blockchain_index):
-        self.indexed_objects[metadata] = blockchain_index
+        if metadata in self.indexed_objects:
+            logger.info(f'Attempted to index pre-existing value: {metadata}')
+        else:
+            self.indexed_objects[metadata] = blockchain_index
+            logger.info(f'Indexed new value {metadata}')
 
 
 class EthereumWrapper:
@@ -57,7 +61,7 @@ class EthereumWrapper:
             oid = self.calculate_oid(data, metadata)
             self.search_engine.index_object(metadata, len(self.object_data))
             self.object_data.append((oid, metadata, producer_node))
-            return
+            return oid
 
     def get_object_data(self, metadata):
         index = self.search_engine.lookup_object(metadata)
@@ -67,3 +71,9 @@ class EthereumWrapper:
 
         if self.test_mode:  
             return self.object_data[index][0]
+    
+    def verify_object(self, oid, metadata, data):
+        # test_oid = calculate_oid(data, metadata)
+        # test: test_oid == oid
+        return metadata in data
+
