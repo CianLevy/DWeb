@@ -13,6 +13,7 @@
 #include "ns3/node.h"
 #include "ns3/internet-stack-helper.h"
 #include <iostream>
+#include <boost/algorithm/string.hpp>
 
 namespace ns3 {
 
@@ -31,8 +32,10 @@ namespace ns3 {
 // }
 
 
-// UDPClient::UDPClient(){
-// }
+UDPClient::UDPClient()
+  : m_rand(CreateObject<UniformRandomVariable>())
+{
+}
 
 void UDPClient::connect(Ptr<Node> node, std::string server_addr, uint16_t port){
     // Ptr<UdpSocketFactory> udpFactory = CreateObject<UdpSocketFactory> ();
@@ -61,10 +64,12 @@ void UDPClient::sendData(std::string data){
 
     uint8_t *m_data = &data_copy[0];
     Ptr<Packet> packet = Create<Packet>(m_data, data_copy.size());
-    if (socket->Send(packet) < 0)
-      std::cout << "Failed" << std::endl;
+    int res = socket->Send(packet);
+    if (res >= 0)
+      std::cout << "Sent " << res << std::endl;
     else
-      std::cout << "Sent ";
+      std::cout << "Failed" << std::endl;
+      
 }
 
 void UDPClient::receivePacket(Ptr<Socket> sock){
@@ -80,6 +85,8 @@ void UDPClient::receivePacket(Ptr<Socket> sock){
 
     std::cout<<"Data Received:"<< receiveBuffer << std::endl;
 
+    std::vector<std::string> results;
+    boost::split(results, receiveBuffer, boost::is_any_of("/"));
     std::string::size_type i = receiveBuffer.find('/');
 
     uint32_t reqID = 0;
@@ -87,21 +94,21 @@ void UDPClient::receivePacket(Ptr<Socket> sock){
     if (i != std::string::npos)
       reqID = static_cast<uint32_t>(std::stoul(receiveBuffer.substr(0, i)));
 
-    std::map<uint32_t, Callback<void, std::string>>::iterator it = registeredCallbacks.find(reqID);
+    std::map<uint32_t, Callback<void, std::vector<std::string>>>::iterator it = registeredCallbacks.find(reqID);
 
     if (it != registeredCallbacks.end()){
-      Callback<void, std::string> callback = (it->second);
+      Callback<void, std::vector<std::string>> callback = (it->second);
       registeredCallbacks.erase(it);
       // (*callback)(receiveBuffer);
-      callback(receiveBuffer);
+      callback(results);
     }
     else
       std::cout << "Received response for unknown callback: " << reqID << std::endl;
 }
 
 
-void UDPClient::registerReceiveCallback(Callback<void, std::string> on_receive, uint32_t callback_id){
-  std::map<uint32_t, Callback<void, std::string>>::iterator it = registeredCallbacks.find(callback_id);
+void UDPClient::registerReceiveCallback(Callback<void, std::vector<std::string>> on_receive, uint32_t callback_id){
+  std::map<uint32_t, Callback<void, std::vector<std::string>>>::iterator it = registeredCallbacks.find(callback_id);
 
   if (it == registeredCallbacks.end())
     registeredCallbacks[callback_id] = on_receive;
@@ -110,15 +117,20 @@ void UDPClient::registerReceiveCallback(Callback<void, std::string> on_receive, 
 }
 
 
-// std::string UDPClient::receive(){
-//   // Manual implementation of blocking receive
-//   std::cout << "waiting for data" << std::endl;
-//   while (receiveBuffer == "")
-//     continue;
 
-//   std::string copy = receiveBuffer;
-//   receiveBuffer = "";
-//   return copy;
-// }
+uint32_t UDPClient::getCallbackID(){
+  return m_rand->GetValue(0, std::numeric_limits<uint32_t>::max()); 
+}
+
+std::string UDPClient::extractOID(std::string response){
+  std::string::size_type i = response.find("oid/");
+
+  std::string oid = "None";
+
+  if (i != std::string::npos)
+    oid = response.substr(i + 4);
+
+  return oid;
+}
 
 }

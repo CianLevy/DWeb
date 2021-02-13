@@ -8,13 +8,17 @@
 #include "ns3/ptr.h"
 #include "ns3/socket.h"
 #include <map>
+#include "ns3/random-variable-stream.h"
 
 namespace ns3{
 
 class UDPClient {
 private:
     ns3::Ptr<Socket> socket;
-    std::map<uint32_t, Callback<void, std::string>> registeredCallbacks;
+    std::map<uint32_t, Callback<void, std::vector<std::string>>> registeredCallbacks;
+    Ptr<UniformRandomVariable> m_rand;
+
+    UDPClient();
 
 public:
     static UDPClient& instance() {
@@ -22,9 +26,6 @@ public:
         return singleton;
     };
 
-    // static TypeId GetTypeId (void);
-
-    // UDPClient();
 
     void connect(ns3::Ptr<Node> node, std::string server_addr, uint16_t port);
 
@@ -32,9 +33,11 @@ public:
 
     void receivePacket(ns3::Ptr<Socket> sock);
 
-    void registerReceiveCallback(Callback<void, std::string> on_receive, uint32_t callback_id);
+    void registerReceiveCallback(Callback<void, std::vector<std::string>> on_receive, uint32_t callback_id);
 
-    // std::string receive();
+    uint32_t getCallbackID();
+
+    std::string extractOID(std::string response);
 
 };
 }
