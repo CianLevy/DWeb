@@ -3,42 +3,16 @@
 #include <ndn-cxx/lp/tags.hpp>
 #include "table/pit.hpp"
 #include <string>
+#include <boost/algorithm/string.hpp>
+#include "ndn-cxx/meta-info.hpp"
+#include "ndn-cxx/encoding/block-helpers.hpp"
+
+
 
 namespace nfd {
 namespace magic {
 
 NFD_LOG_INIT(Magic);
-
-void MaxPopularityPathMap::update(uint32_t nonce, uint32_t local_popularity, std::string curr_id, ndn::Name n){
-    NFD_LOG_DEBUG(curr_id << " " << nonce << " outbound max " \
-                  << MaxPopularityPathMap::instance().getPopularity(nonce, curr_id) \
-                  << " local " << local_popularity << " req " << n);
-    
-    std::map<uint32_t, std::pair<uint32_t, std::string>>::iterator it = requestHistoryMap.find(nonce);
-
-    if (it != requestHistoryMap.end()){
-        if (local_popularity > it->second.first)
-            it->second.first = local_popularity;
-    } else{
-        // initial popularity should be 0?
-        requestHistoryMap[nonce] = make_pair(0, curr_id);
-    }       
-}
-
-uint32_t MaxPopularityPathMap::getPopularity(uint32_t nonce, std::string curr_id){
-    std::map<uint32_t, std::pair<uint32_t, std::string>>::iterator it = requestHistoryMap.find(nonce);
-
-    if (it != requestHistoryMap.end()){
-        uint32_t res = it->second.first;
-
-        if (it->second.second == curr_id)
-            requestHistoryMap.erase(it);
-        
-        return res;
-    } else{
-        return 0;
-    }
-}
 
 
 uint32_t PopularityCounter::getPopularity(ndn::Name n){
@@ -64,8 +38,21 @@ uint32_t PopularityCounter::getPopularity(ndn::Name n){
     return 0;
 }
 
-void PopularityCounter::recordRequest(ndn::Name n){
-    std::string name_str = n.toUri(ndn::name::UriFormat::DEFAULT);
+void PopularityCounter::recordRequest(const ndn::Interest& interest){
+    // prior to recording the new request, update the packet with the
+    // current local popularity
+    uint32_t current_popularity = getPopularity(interest.getName());
+    updateInterestPopularityField(interest, current_popularity);
+
+
+    std::string name_str = interest.getName().toUri(ndn::name::UriFormat::DEFAULT);
+
+    std::string::size_type i = name_str.find("/prefix/");
+
+    if (i != std::string::npos)
+        std::cout << "interest is for actual request" << std::endl;
+
+
     std::chrono::nanoseconds currentTime = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch());
 
     std::map<std::string, std::vector<std::chrono::nanoseconds>*>::iterator it = requestHistoryMap.find(name_str);
@@ -89,6 +76,18 @@ void PopularityCounter::recordRequest(ndn::Name n){
         req_hist->erase(new_end, req_hist->end());
 }
 
+void PopularityCounter::updateInterestPopularityField(const ndn::Interest& interest, uint32_t popularity){
+    MAGICParams params(interest);
+    params.insertHop(id, interest);
+
+    NFD_LOG_DEBUG(id << " " << params.getLogUUID() << " outbound max " \
+                  << params.getPopularity() \
+                  << " local " << popularity << " req " << interest.getName());
+
+    params.updatePopularity(popularity);
+    params.addToInterest(interest);
+}
+
 void PopularityCounter::print(std::vector<std::chrono::nanoseconds>* vec){
     if (!vec)
         return;
@@ -99,57 +98,121 @@ void PopularityCounter::print(std::vector<std::chrono::nanoseconds>* vec){
     std::cout << std::endl;
 }
 
+
 bool PopularityCounter::isMaxPopularity(const ndn::Data& data){
-  typedef ndn::SimpleTag<shared_ptr<nfd::pit::DataMatchResult>, 999> pitMatchesTag;
-  auto tag = data.getTag<pitMatchesTag>();
-  data.removeTag<pitMatchesTag>();
+    MAGICParams params(data);
 
-  auto pitMatches = tag->get();
+    uint32_t local_popularity = getPopularity(data.getName());
 
-  bool res = false;
+    NFD_LOG_DEBUG(id << " " << params.getLogUUID()  << " return max " << \
+        params.getPopularity() << " local " << local_popularity << " req " << data.getName());
 
-  for (const auto& pitEntry : *pitMatches){
-    uint32_t interest_nonce = pitEntry->getInterest().getNonce();
-    int local_popularity = getPopularity(pitEntry->getInterest().getName());
-    int max_path_popularity = MaxPopularityPathMap::instance().getPopularity(interest_nonce, id);
-    
-    NFD_LOG_DEBUG(id << " " << interest_nonce << " return max " << \
-                  max_path_popularity << " local " << local_popularity << " req " << data.getName());
+    // if (params.getPopularity() > local_popularity)
+    //     return true;
 
-    // if (local_popularity >= max_path_popularity && local_popularity > 0){
-    //     return false; // TO DO FIX
-    // }
-  }
-
-  return false;
+    return false;
 }
 
 
-MAGICParams::MAGICParams(const ndn::Block& parameters){
-    // content = std::string((char*)value);
-    bool encountered_start = false;
+MAGICParams::MAGICParams(const ndn::Interest& interest)
+: m_rand(ns3::CreateObject<ns3::UniformRandomVariable>())
+{
+    log_uuid = m_rand->GetValue(0, std::numeric_limits<uint32_t>::max());
 
-    for (auto val : parameters){
-        char current = (char)val;
-
-        if (current == 'N')
-            encountered_start = true;
-
-        if (encountered_start)
-            content += current;
+    if (interest.hasApplicationParameters()){
+        auto raw_data = interest.getApplicationParameters();
+        init(raw_data, true);
     }
-        
 }
 
-const uint8_t* MAGICParams::encode(){
-    if (content != "")
-        return reinterpret_cast<const uint8_t*>(&content[0]);
+MAGICParams::MAGICParams(const ndn::Data& data)
+: m_rand(ns3::CreateObject<ns3::UniformRandomVariable>())
+{   
+    log_uuid = m_rand->GetValue(0, std::numeric_limits<uint32_t>::max());
+
+    if (!data.getMetaInfo().getAppMetaInfo().empty()){
+        auto raw_data = data.getMetaInfo().getAppMetaInfo().front();
+        init(raw_data, true);
+    }
     else
-        return nullptr;
+        std::cout << data.getName() << " metainfo empty" << std::endl;
+
 }
 
-void MAGICParams::insertHop(std::string id){
-    content += " " + id;
+void MAGICParams::init(const ndn::Block& parameters, bool interest_packet){
+    readStringFromBlock(parameters);
+
+    if (interest_packet && buffer != ""){
+        boost::split(hops, buffer, boost::is_any_of(" "));
+        std::string end = hops.back();
+        m_popularity = static_cast<uint32_t>(std::stoul(end));
+        
+        hops.pop_back();
+        end = hops.back();
+        hops.pop_back();
+        log_uuid = static_cast<uint32_t>(std::stoul(end));
+    }
+}
+
+void MAGICParams::insertHop(std::string id, const ndn::Interest& interest){
+    if (hops.size() > 0){
+        updateBuffer();
+        std::cout << log_uuid << ": " << " previous hops " << buffer << std::endl;
+    }
+    else{
+        std::cout << log_uuid << ": " << " starting hop " << id << std::endl;
+    }
+    hops.push_back(id);
+}
+
+std::string MAGICParams::getParams(){
+    updateBuffer();
+    return buffer;
+}
+
+void MAGICParams::updateBuffer(){
+    buffer = "~";
+    for (auto i : hops)
+        buffer += i + " ";
+
+    buffer += std::to_string(log_uuid) + " ";
+    buffer += std::to_string(m_popularity);
+}
+
+void MAGICParams::updatePopularity(uint32_t popularity){
+    if (popularity > m_popularity)
+        m_popularity = popularity;
+}
+
+void MAGICParams::readStringFromBlock(const ndn::Block& parameters){
+    buffer = ndn::encoding::readString(parameters);
+    std::string::size_type i = buffer.find("~");
+
+    if (i != std::string::npos)
+        buffer = buffer.substr(i + 1);
+
+}
+
+void MAGICParams::addToInterest(const ndn::Interest& interest)
+{
+    ndn::Interest* non_const_interest = (ndn::Interest*)&interest;
+    updateBuffer();
+    Block metainf_block = ndn::encoding::makeStringBlock(150, buffer);
+    non_const_interest->setApplicationParameters(metainf_block);
+}
+
+void MAGICParams::addToData(std::shared_ptr<ndn::Data> data)
+{
+    std::shared_ptr<ndn::MetaInfo> metainf = make_shared<ndn::MetaInfo>();
+    std::string pop_field = " " + std::to_string(m_popularity);
+    
+    updateBuffer();
+    Block metainf_block = ndn::encoding::makeStringBlock(150, buffer);
+
+    std::string temp = ndn::encoding::readString(metainf_block);
+    metainf->addAppMetaInfo(metainf_block);
+    
+    data->setMetaInfo(*metainf);
 }
 
 }

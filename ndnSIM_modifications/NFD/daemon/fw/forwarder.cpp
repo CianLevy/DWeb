@@ -129,12 +129,6 @@ Forwarder::onIncomingInterest(const FaceEndpoint& ingress, const Interest& inter
     return;
   }
 
-  uint32_t local_popularity = m_popCounter->getPopularity(interest.getName());
-
-  // int curr_max = MaxPopularityPathMap::instance().getPopularity(interest.getNonce());
-  // std::cout << "outbound nonce " << interest.getNonce() << " local " << local_popularity << " max " << curr_max << std::endl;
-  magic::MaxPopularityPathMap::instance().update(interest.getNonce(), local_popularity, m_id, interest.getName());
-
   // strip forwarding hint if Interest has reached producer region
   if (!interest.getForwardingHint().empty() &&
       m_networkRegionTable.isInProducerRegion(interest.getForwardingHint())) {
@@ -143,32 +137,19 @@ Forwarder::onIncomingInterest(const FaceEndpoint& ingress, const Interest& inter
     const_cast<Interest&>(interest).setForwardingHint({});
   }
 
-  // magic::MAGICParams* params = nullptr;
-
-  // if (interest.hasApplicationParameters()){
-  //   auto hops = interest.getApplicationParameters();
-  //   params = new magic::MAGICParams(hops);
-  //   std::cout << m_id << " previous hops " << params->getParams() << std::endl;
-  // }
-  // else{
-  //   std::cout << m_id << "starting hop" << std::endl;
-  //   params = new magic::MAGICParams();
-  // }
-  // params->insertHop(m_id);
-
-
-  // std::shared_ptr<Interest> new_interest = make_shared<Interest>(interest.wireEncode());
-
-  // Interest* non_const_interest = (Interest*)&interest;
-  // size_t len = params->getParams().size();
-
-  // non_const_interest->setApplicationParameters(params->encode(), len);
-  // new_interest->setForwardingHint(interest.getForwardingHint());
-  // new_interest->setTag(make_shared<lp::IncomingFaceIdTag>(ingress.face.getId()));
-  
 
   // PIT insert
   shared_ptr<pit::Entry> pitEntry = m_pit.insert(interest).first;
+  const auto& fibEntry = m_fib.findLongestPrefixMatch(interest.getName());
+  size_t hop_count = fibEntry.getNextHops().size();
+  // m_strategyChoice.lookupFib(*pitEntry);
+
+  std::string name_str = interest.getName().toUri(ndn::name::UriFormat::DEFAULT);
+
+  std::string::size_type i = name_str.find("/prefix/");
+
+  if (i != std::string::npos)
+      std::cout << "interest is for actual request" << std::endl;
 
   // detect duplicate Nonce in PIT entry
   int dnw = fw::findDuplicateNonce(*pitEntry, interest.getNonce(), ingress.face);
@@ -342,14 +323,6 @@ Forwarder::onIncomingData(const FaceEndpoint& ingress, const Data& data)
 
   // PIT match
   pit::DataMatchResult pitMatches = m_pit.findAllDataMatches(data);
-
-  // set tag first
-  // auto test = make_shared<pit::DataMatchResult>(&pitMatches);
-  // pit::DataMatchResult* pitMatchesCopy = new pit::DataMatchResult();
-  auto pitMatchesCopy = make_shared<pit::DataMatchResult>();
-  copy(pitMatches.begin(), pitMatches.end(), back_inserter(*pitMatchesCopy));
-
-  data.setTag(make_shared<ndn::SimpleTag<shared_ptr<pit::DataMatchResult>, 999>>(pitMatchesCopy));
 
   if (pitMatches.size() == 0) {
     // goto Data unsolicited pipeline

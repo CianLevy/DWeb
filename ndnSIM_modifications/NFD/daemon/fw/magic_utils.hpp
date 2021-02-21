@@ -7,8 +7,12 @@
 #include <string>
 #include <chrono>
 #include <vector>
+#include <memory>
 #include <ndn-cxx/data.hpp>
 #include <ndn-cxx/encoding/block.hpp>
+#include "ndn-cxx/interest.hpp"
+#include "ns3/ptr.h"
+#include "ns3/random-variable-stream.h"
 
 namespace nfd {
 
@@ -20,45 +24,43 @@ class PopularityCounter {
 public:
     void setId(std::string curr_id) { id = curr_id; };
     uint32_t getPopularity(ndn::Name n);
-    void recordRequest(ndn::Name n);
+    void recordRequest(const ndn::Interest& interest);
     void print(std::vector<std::chrono::nanoseconds>* vec);
     bool isMaxPopularity(const ndn::Data& data);
+
+    void updateInterestPopularityField(const ndn::Interest& interest, uint32_t popularity);
 private:
     std::map<std::string, std::vector<std::chrono::nanoseconds>*> requestHistoryMap;
     std::string id = "null";
 };
 
 
-class MaxPopularityPathMap{
-
-public:
-    static MaxPopularityPathMap& instance() {
-        static MaxPopularityPathMap singleton;
-        return singleton;
-    }
-
-    void update(uint32_t nonce, uint32_t local_popularity, std::string curr_id, ndn::Name n);
-
-    uint32_t getPopularity(uint32_t nonce, std::string curr_id);
-
-    ~MaxPopularityPathMap(){ std::cout << "Final map size " << requestHistoryMap.size() << std::endl; }
-
-private:
-    std::map<uint32_t, std::pair<uint32_t, std::string>> requestHistoryMap;
-};
-
-
 class MAGICParams{
 public:
-    MAGICParams(){};
-    MAGICParams(const ndn::Block& parameters);
+    MAGICParams(const ndn::Interest& interest);
+    MAGICParams(const ndn::Data& data);
+    void init(const ndn::Block& parameters, bool interest_packet);
 
-    const uint8_t* encode();
-    void insertHop(std::string id);
-    std::string getParams() { return content; };
+    void insertHop(std::string id, const ndn::Interest& interest);   
+    std::string getParams();
+
+    void updatePopularity(uint32_t popularity);
+    uint32_t getPopularity() { return m_popularity; };
+
+    void addToInterest(const ndn::Interest& interest);
+    void addToData(std::shared_ptr<ndn::Data> data);
+
+    uint32_t getLogUUID() { return log_uuid; };
 
 private:
-    std::string content;
+    void updateBuffer();
+    void readStringFromBlock(const ndn::Block& parameters);
+
+    std::string buffer = "";
+    std::vector<std::string> hops;
+    uint32_t m_popularity = 0;
+    uint32_t log_uuid;
+    ns3::Ptr<ns3::UniformRandomVariable> m_rand;
 };
 
 }
