@@ -1,9 +1,14 @@
-import traceback
 import hashlib
 import json
-from web3 import Web3, HTTPProvider
 import logging
+import traceback
+import time
 
+import solcx
+from solcx import compile_source
+from web3 import HTTPProvider, Web3
+
+solcx.set_solc_version('0.4.22')
 logger = logging.getLogger(__name__)
 
 class SearchEngine:
@@ -28,24 +33,45 @@ class SearchEngine:
 
 class EthereumWrapper:
 
-    def __init__(self, contract_path, contract_addr, test_mode=True):
-        self.contract_addr = contract_addr
+    def __init__(self, contract_path, blockchain_address, test_mode=True):
         self.search_engine = SearchEngine(test_mode)
         self.test_mode = test_mode
 
         if not test_mode:
+            self.web3 = Web3(HTTPProvider(blockchain_address))
+            self.web3.eth.defaultAccount = self.web3.eth.accounts[0]
+
             try:
-                compile_contract = open(contract_path)
+                self.contract = self.deploy_contract(contract_path)
             except OSError as e:
-                print(f"Failed to open contract {contract_path}")
+                print(f"Failed to deploy contract {contract_path}")
+                raise e
+            
+            try:
+                self.index = self.contract.functions.GetObjectCount().call()
+            except Exception as e:
                 raise e
             else:
-                contract_json = json.load(compile_contract)
-                self.contract_abi = contract_json['abi']
+                logger.info("Successfully deployed contract")
         else:
             self.object_data = []
 
-        # calculate index offset from contract
+    def deploy_contract(self, contract_path):
+        compiled_contract = None
+
+        with open(contract_path, u'r') as f:
+            source = f.read()
+            compiled_contract = compile_source(source)
+
+        contract_id, contract_interface = compiled_contract.popitem()
+
+        tx_hash = self.web3.eth.contract(abi=contract_interface['abi'],
+                                  bytecode=contract_interface['bin']).constructor().transact()
+
+        time.sleep(10)
+        address = self.web3.eth.getTransactionReceipt(tx_hash)['contractAddress']
+
+        return self.web3.eth.contract(address=address, abi=contract_interface["abi"])
 
     def calculate_oid(self, data, metadata):
         hash_gen = hashlib.sha512()
@@ -54,26 +80,37 @@ class EthereumWrapper:
         hash_gen.update(combined.encode())
 
         return hash_gen.hexdigest()
-        # return data[0]
 
     def set_object_data(self, data, metadata='', producer_node=''):
+        oid = self.calculate_oid(data, metadata)
+
         if self.test_mode:
-            oid = self.calculate_oid(data, metadata)
             self.search_engine.index_object(metadata, len(self.object_data))
             self.object_data.append((oid, metadata, producer_node))
+            return oid
+        else:
+            self.search_engine.index_object(metadata, self.index)
+            self.index += 1
+            res = self.contract.functions.SetObjectInfo(oid, metadata).transact()
+
             return oid
 
     def get_object_data(self, metadata):
         index = self.search_engine.lookup_object(metadata)
+
         if index is None:
             logger.error(f"Got request for unknown object {metadata}")
             return "None"
 
         if self.test_mode:  
             return self.object_data[index][0]
+        else:
+            res = self.contract.functions.GetObjectInfo(index).call()
+            return res[0]
     
     def verify_object(self, oid, metadata, data):
         # test_oid = calculate_oid(data, metadata)
         # test: test_oid == oid
+        # import pdb; pdb.set_trace()
         return metadata in data
 

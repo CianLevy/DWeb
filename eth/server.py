@@ -24,10 +24,10 @@ class UDPDatagramProcessingProtocol:
         super().__init__()
         self.processing_func = None
 
-    def connection_made(self, transport) -> "Used by asyncio":
+    def connection_made(self, transport):
         self.transport = transport
 
-    def datagram_received(self, data, addr) -> "Main entrypoint for processing message":
+    def datagram_received(self, data, addr):
         if self.processing_func:
             self.processing_func(data, addr)
 
@@ -40,7 +40,6 @@ class RequestHandler:
         self.ethereum_wrapper = ethereum_wrapper
 
     async def process_req(self, req):
-        # import pdb; pdb.set_trace()
         split_req = req.split('/')
 
         if 'set' in req and len(split_req) == 5:
@@ -57,8 +56,9 @@ class RequestHandler:
             # split_req[1] + "/oid/" + res "/" + (split_req[2]
 
         elif 'verify' in req and len(split_req) == 5:
-            # verify/req_id/oid/metadata/data
+            # 'verify' request structure is: verify/req_id/oid/metadata/data
             res = self.ethereum_wrapper.verify_object(split_req[2], split_req[3], split_req[4])
+            logger.info(f"Result of verfication request for {split_req[2]} is {res}")
 
             return f"{split_req[1]}/oid/{res}/{split_req[2]}"
         else:
@@ -72,7 +72,8 @@ class UDPServer:
         self.port = port
         self.socket = sock = socket.socket(socket.AF_INET,
                                            socket.SOCK_DGRAM)
-        self.eth_wrapper = EthereumWrapper('', '')
+        self.eth_wrapper = EthereumWrapper('contracts/publishobject.sol',
+                                           'http://127.0.0.1:8545', False)
         self.req_handler = RequestHandler(self.eth_wrapper)
         
         self.loop = asyncio.get_event_loop()
@@ -85,15 +86,14 @@ class UDPServer:
         t = self.loop.create_datagram_endpoint(UDPDatagramProcessingProtocol, local_addr=(host_addr, port))
 
         self.loop.run_until_complete(t)
-        # loop.run_until_complete(self.write_messages()) # Start writing messages (or running tests)
         self.loop.run_forever()
 
 
     def recieve(self, data, addr):
-        self.loop.create_task(self.recieve2(data, addr))
+        self.loop.create_task(self.async_recieve(data, addr))
 
-    async def recieve2(self, data, addr):
-        logger.debug(f"Recieved {data}")
+    async def async_recieve(self, data, addr):
+        logger.debug(f"Recieved: {data}")
         decoded_data = None
 
         try:

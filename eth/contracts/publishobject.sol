@@ -1,29 +1,25 @@
 pragma solidity >=0.4.22 <0.6.0;
 
 contract publishobject {
- mapping (uint256=> MyObject) public allobjects;
- uint256 public ObjectCount=0;
- struct MyObject { 
-  string name;
-  string metadata;
-  string contenthash;
-  string node;
-}
-function SetObjectInfo(string memory _name, string memory _metadata, string memory _contenthash, string memory _node) public {
-    
+  mapping (uint256 => ObjectData) public objects;
+  uint256 public ObjectCount = 0;
+
+  struct ObjectData { 
+    string oid;
+    string metadata;
+  }
+
+  function SetObjectInfo(string memory oid, string memory metadata) public {    
+    objects[ObjectCount] = ObjectData(oid, metadata);
     ObjectCount += 1;
-    allobjects[ObjectCount] = MyObject(_name, _metadata, _contenthash, _node);
-}
+  }
 
-function GetObjectCounts()public view returns(uint256){
-return ObjectCount;
-}
+  function GetObjectCount() public view returns(uint256){
+    return ObjectCount;
+  }
 
 
-function GetObjectInfo(uint256 givenindex)public view returns(string memory, string memory, string memory, string memory){
-return(allobjects[givenindex].name,
-allobjects[givenindex].metadata,
-allobjects[givenindex].contenthash,
-allobjects[givenindex].node);
-}
+  function GetObjectInfo(uint256 index) public view returns(string memory, string memory){
+    return(objects[index].oid, objects[index].metadata);
+  }
 }
