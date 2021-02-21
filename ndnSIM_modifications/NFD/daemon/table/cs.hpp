@@ -176,6 +176,8 @@ public: // enumeration
     return m_table.end();
   }
 
+  shared_ptr<magic::PopularityCounter> m_popCounter;
+
 private:
   std::pair<const_iterator, const_iterator>
   findPrefixRange(const Name& prefix) const;
@@ -201,7 +203,7 @@ private:
   bool m_shouldAdmit = true; ///< if false, no Data will be admitted
   bool m_shouldServe = true; ///< if false, all lookups will miss
 
-  shared_ptr<magic::PopularityCounter> m_popCounter;
+
 };
 
 } // namespace cs
