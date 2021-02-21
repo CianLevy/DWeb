@@ -180,20 +180,20 @@ namespace ns3
     producerHelper.Install(nodes.Get(2)); // last node
     
 
-    std::string remote1 ("192.168.1.6");
-    Ipv4Address remoteIp1 (remote1.c_str ());
-    uint16_t port1 = 3000;
-    UdpEchoClientHelper client2 (remoteIp1, port1);
-    //client.SetAttribute ("MaxPackets", UintegerValue (maxPacketCount));
-    // client2.SetAttribute ("Interval", TimeValue (100));
-    std::ostringstream msg;
-    msg << "Hello Docker Container! How are you there\n" << '\0';
-    client2.SetAttribute ("PacketSize", UintegerValue (msg.str().length()));
-    // Ptr packet = Create<Packet> (, );
-    ApplicationContainer apps2 = client2.Install (tempNodes0.Get(1));
-    apps2.Start (Seconds (0.5));
-    apps2.Stop (Seconds (10.0));
-    client2.SetFill (apps2.Get (0), (uint8_t*) msg.str().c_str(), msg.str().length(), msg.str().length());
+    // std::string remote1 ("192.168.1.6");
+    // Ipv4Address remoteIp1 (remote1.c_str ());
+    // uint16_t port1 = 3000;
+    // UdpEchoClientHelper client2 (remoteIp1, port1);
+    // //client.SetAttribute ("MaxPackets", UintegerValue (maxPacketCount));
+    // // client2.SetAttribute ("Interval", TimeValue (100));
+    // std::ostringstream msg;
+    // msg << "Hello Docker Container! How are you there\n" << '\0';
+    // client2.SetAttribute ("PacketSize", UintegerValue (msg.str().length()));
+    // // Ptr packet = Create<Packet> (, );
+    // ApplicationContainer apps2 = client2.Install (tempNodes0.Get(1));
+    // apps2.Start (Seconds (0.5));
+    // apps2.Stop (Seconds (10.0));
+    // client2.SetFill (apps2.Get (0), (uint8_t*) msg.str().c_str(), msg.str().length(), msg.str().length());
 
 
 

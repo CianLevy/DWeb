@@ -158,6 +158,7 @@ namespace ns3
     for (uint32_t i = 0; i < nLocality; ++i)
       nodes.Add(Names::Find<Node>("Node" + std::to_string(i)));
 
+    ndnHelper.setPolicy("nfd::cs::popularity_priority_queue");
     ndnHelper.Install(nodes);
 
     // Set BestRoute strategy
@@ -173,8 +174,11 @@ namespace ns3
     ndn::AppHelper consumerHelper("DerivedConsumer");
     // Consumer will request /prefix/0, /prefix/1, ...
     consumerHelper.SetPrefix("/prefix");
-    consumerHelper.SetAttribute("Frequency", StringValue("10")); // 10 interests a second
+    consumerHelper.SetAttribute("Frequency", StringValue("1")); // 10 interests a second
     consumerHelper.SetAttribute("MaxSeq", IntegerValue(0));
+    consumerHelper.SetAttribute("ProduceRate", StringValue("0.25"));
+    consumerHelper.SetAttribute("TotalProducerCount", UintegerValue(1));
+    consumerHelper.SetAttribute("StartingMetadataCap", UintegerValue(10));
     consumerHelper.SetAttribute("NumberOfContents", StringValue("100")); // 10 different contents
     consumerHelper.Install(nodes.Get(3));                        // first node
 
@@ -187,6 +191,9 @@ namespace ns3
     ndnGlobalRoutingHelper.AddOrigins(prefix, nodes.Get(2));
     producerHelper.SetPrefix("/prefix");
     producerHelper.SetAttribute("PayloadSize", StringValue("1024"));
+    producerHelper.SetAttribute("ProduceRate", StringValue("0.25"));
+    producerHelper.SetAttribute("TotalProducerCount", UintegerValue(1));
+    producerHelper.SetAttribute("ProducerNumber", UintegerValue(0));
     ApplicationContainer temp = producerHelper.Install(nodes.Get(2)); // last node
    
     UDPClient::instance().connect(tempNodes0.Get(1), "192.168.1.6", 3000);
