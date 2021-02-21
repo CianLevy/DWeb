@@ -27,6 +27,7 @@
 
 #include "ns3/nstime.h"
 #include "ns3/ptr.h"
+#include "ns3/double.h"
 
 #include "udp-client.hpp"
 #include "ns3/ndnSIM/apps/ndn-app.hpp"
@@ -73,7 +74,29 @@ private:
   uint32_t packet_len = 10;
   int count = 0;
 
+  uint32_t producer_num;
+  uint32_t produced_count = 0;
+  uint32_t total_producers_count;
+
+  uint32_t starting_objects;
+
+  double produce_rate;
+  double produce_delay;
+
+  EventId m_publishEvent; 
+
   std::map<std::string, int> OIDtoMetadata;
+
+  void
+  setProduceRate(double rate);
+
+  double getProduceRate() const;
+
+  void
+  ScheduleNextProduce();
+
+  void
+  publishNext();
 
   void
   publishDataOnBlockchain(std::string metadata, shared_ptr<::ndn::Buffer> data, uint32_t callback_id);
@@ -95,6 +118,11 @@ private:
 
   void
   publishInitialObjects();
+
+  uint32_t
+  extractPopularity(shared_ptr<const Interest> interest);
+
+  std::string getNextMetadataValue();
 };
 
 }

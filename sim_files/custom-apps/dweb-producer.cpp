@@ -31,7 +31,8 @@
 #include <memory>
 #include <string>
 #include "ns3/nstime.h"
-
+#include "common/logger.hpp"
+#include "NFD/daemon/fw/magic_utils.hpp"
 
 NS_LOG_COMPONENT_DEFINE("DWebProducer");
 
@@ -52,23 +53,39 @@ DWebProducer::GetTypeId(void)
       .AddAttribute("Prefix", "Prefix, for which producer has the data", StringValue("/"),
                     MakeNameAccessor(&DWebProducer::m_prefix), MakeNameChecker())
       .AddAttribute(
-         "Postfix",
-         "Postfix that is added to the output data (e.g., for adding producer-uniqueness)",
-         StringValue("/"), MakeNameAccessor(&DWebProducer::m_postfix), MakeNameChecker())
+                    "Postfix",
+                    "Postfix that is added to the output data (e.g., for adding producer-uniqueness)",
+                    StringValue("/"), MakeNameAccessor(&DWebProducer::m_postfix), MakeNameChecker())
       .AddAttribute("PayloadSize", "Virtual payload size for Content packets", UintegerValue(1024),
                     MakeUintegerAccessor(&DWebProducer::m_virtualPayloadSize),
                     MakeUintegerChecker<uint32_t>())
       .AddAttribute("Freshness", "Freshness of data packets, if 0, then unlimited freshness",
                     TimeValue(Seconds(0)), MakeTimeAccessor(&DWebProducer::m_freshness),
                     MakeTimeChecker())
-      .AddAttribute(
-         "Signature",
-         "Fake signature, 0 valid signature (default), other values application-specific",
-         UintegerValue(0), MakeUintegerAccessor(&DWebProducer::m_signature),
-         MakeUintegerChecker<uint32_t>())
+      .AddAttribute("Signature",
+                    "Fake signature, 0 valid signature (default), other values application-specific",
+                    UintegerValue(0), MakeUintegerAccessor(&DWebProducer::m_signature),
+                    MakeUintegerChecker<uint32_t>())
       .AddAttribute("KeyLocator",
                     "Name to be used for key locator.  If root, then key locator is not used",
-                    NameValue(), MakeNameAccessor(&DWebProducer::m_keyLocator), MakeNameChecker());
+                    NameValue(), MakeNameAccessor(&DWebProducer::m_keyLocator), MakeNameChecker())
+      .AddAttribute("ProduceRate", "Objects published per second", StringValue("0.25"),
+                    MakeDoubleAccessor(&DWebProducer::setProduceRate,
+                                       &DWebProducer::getProduceRate),
+                    MakeDoubleChecker<double>())
+      .AddAttribute("TotalProducerCount", "Total number of producers", UintegerValue(0),
+                    MakeUintegerAccessor(&DWebProducer::total_producers_count),
+                    MakeUintegerChecker<uint32_t>())
+      .AddAttribute("ProducerNumber", 
+                    "The producer's associated id within the count from 0 to total number of producers", 
+                    UintegerValue(0),
+                    MakeUintegerAccessor(&DWebProducer::producer_num),
+                    MakeUintegerChecker<uint32_t>())
+      .AddAttribute("InitialObjects", 
+                    "The producer's associated id within the count from 0 to total number of producers", 
+                    UintegerValue(10),
+                    MakeUintegerAccessor(&DWebProducer::starting_objects),
+                    MakeUintegerChecker<uint32_t>());
   return tid;
 }
 
@@ -82,10 +99,11 @@ DWebProducer::DWebProducer()
 
 void
 DWebProducer::publishInitialObjects(){
-  for (int i = 0; i < 10; ++i){
-      std::string metadata(std::to_string(i));
-      publishAndAdvertise(metadata);
+  for (uint32_t i = 0; i < starting_objects; ++i){
+    std::string metadata = getNextMetadataValue();
+    publishAndAdvertise(metadata);
   }
+  publishNext();
 }
 
 // inherited from Application base class.
@@ -95,7 +113,7 @@ DWebProducer::StartApplication()
   NS_LOG_FUNCTION_NOARGS();
   App::StartApplication();
 
-  Simulator::Schedule (Time(Seconds(1)), &DWebProducer::publishInitialObjects, this);
+  Simulator::Schedule(Time(Seconds(1)), &DWebProducer::publishInitialObjects, this);
   FibHelper::AddRoute(GetNode(), m_prefix, m_face, 0);
 }
 
@@ -106,6 +124,7 @@ DWebProducer::StopApplication()
 
   App::StopApplication();
 }
+
 
 void
 DWebProducer::OnInterest(shared_ptr<const Interest> interest)
@@ -122,6 +141,20 @@ DWebProducer::OnInterest(shared_ptr<const Interest> interest)
   // dataName.appendVersion();
   
   auto data = make_shared<Data>();
+
+
+    // uint32_t popularity = extractPopularity(interest);
+    // shared_ptr<ndn::MetaInfo> metainf = make_shared<ndn::MetaInfo>();
+    // std::string pop_field = "max_pop " + std::to_string(popularity);
+    
+    // const uint8_t* metainf_converted = reinterpret_cast<const uint8_t*>(&pop_field[0]);
+    // // shared_ptr<Block> metainf_block = make_shared<Block>(metainf_converted, pop_field.size());
+    // Block metainf_block(metainf_converted, pop_field.size());
+    // metainf->addAppMetaInfo(metainf_block);
+
+  nfd::magic::MAGICParams params(*interest);
+  params.addToData(data);
+
   data->setName(dataName);
   data->setFreshnessPeriod(::ndn::time::milliseconds(m_freshness.GetMilliSeconds()));
 
@@ -162,7 +195,7 @@ DWebProducer::publishDataOnBlockchain(std::string metadata, shared_ptr<::ndn::Bu
   std::string test(temp);
   UDPClient::instance().sendData("set/" + std::to_string(callback_id) + "/" + std::to_string(GetNode()->GetId()) + "/" + metadata + "/" + test + "\n");
 
-  std::cout << "Attempting to publish " << metadata << std::endl;
+  NFD_LOG_DEBUG("Attempting to publish " << metadata);
 }
 
 shared_ptr<::ndn::Buffer>
@@ -201,13 +234,11 @@ DWebProducer::successfulBlockchainPublishCallback(std::vector<std::string> split
       shared_ptr<Name> prefix = make_shared<Name>(m_prefix);
       prefix->append(oid);
       FibHelper::AddRoute(GetNode(), *prefix, m_face, 0);
-      std::cout << "Published new oid " << *prefix << std::endl;
+      NFD_LOG_DEBUG("Published new oid " << *prefix);
 
-      // this is a hacky assumption about the reseponse structure being
-      // "oid/<oid val>/<metadata>"
-      // should be fixed
       recordPublishedOID(split_response.at(3), oid);
     }
+    
 }
 
 void
@@ -218,12 +249,10 @@ DWebProducer::recordPublishedOID(std::string metadata, std::string oid){
 
   if (curr_metadata == -1){
     OIDtoMetadata[oid] = metadata_conv;
-    bool test = lookupOID(oid) == metadata_conv;
-    std::cout << "test " << test << std::endl;
   }
 
   else
-    std::cout << "Attempted to re-record metadata value for oid: " << oid << std::endl;
+    NFD_LOG_DEBUG("Attempted to re-record metadata value for oid: " << oid);
 }
 
 int
@@ -234,6 +263,39 @@ DWebProducer::lookupOID(std::string oid){
   else
     return -1;
 }
+
+std::string 
+DWebProducer::getNextMetadataValue(){
+  uint32_t next = producer_num + produced_count * total_producers_count;
+  produced_count++;
+  return std::to_string(next);
+}
+
+void
+DWebProducer::publishNext(){
+  std::string metadata = getNextMetadataValue();
+  NFD_LOG_DEBUG("Publishing object with metadata: " + metadata);
+  publishAndAdvertise(metadata);
+  ScheduleNextProduce();
+}
+
+void
+DWebProducer::ScheduleNextProduce(){
+  if (!m_publishEvent.IsRunning())
+    m_publishEvent = Simulator::Schedule(Seconds(produce_delay), &DWebProducer::publishNext, this);
+}
+
+void
+DWebProducer::setProduceRate(double rate){
+  produce_rate = rate;
+  produce_delay = 1 / rate;
+}
+
+double 
+DWebProducer::getProduceRate() const { 
+  return produce_rate;
+}
+
 
 } // namespace ndn
 } // namespace ns3

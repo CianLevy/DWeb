@@ -4,8 +4,6 @@
 #include "ns3/inet-socket-address.h"
 #include "ns3/socket.h"
 #include "ns3/udp-socket-factory.h"
-// #include "ns3/udp-socket-factory-impl.h"
-
 #include "ns3/packet.h"
 #include <string>
 #include "ns3/ptr.h"
@@ -14,23 +12,11 @@
 #include "ns3/internet-stack-helper.h"
 #include <iostream>
 #include <boost/algorithm/string.hpp>
+#include "common/logger.hpp"
 
 namespace ns3 {
 
-// NS_OBJECT_ENSURE_REGISTERED (UDPClient);
-
-
-// TypeId
-// UDPClient::GetTypeId (void)
-// {
-//   static TypeId tid = TypeId ("ns3::UDPClient")
-//     .SetParent<Application> ()
-//     .SetGroupName("Applications")
-//     .AddConstructor<UDPClient> ()
-//   ;
-//   return tid;
-// }
-
+NS_LOG_COMPONENT_DEFINE("UDPClient");
 
 UDPClient::UDPClient()
   : m_rand(CreateObject<UniformRandomVariable>())
@@ -38,12 +24,7 @@ UDPClient::UDPClient()
 }
 
 void UDPClient::connect(Ptr<Node> node, std::string server_addr, uint16_t port){
-    // Ptr<UdpSocketFactory> udpFactory = CreateObject<UdpSocketFactory> ();
-    // udpFactory->SetUdp (this);
-    // node->AggregateObject(udpFactory);
     TypeId tid = TypeId::LookupByName ("ns3::UdpSocketFactory");
-    // receiveBuffer = "";
-
     socket = Socket::CreateSocket(node, tid);
 
     InetSocketAddress local = InetSocketAddress(Ipv4Address::GetAny(), port);
@@ -52,7 +33,7 @@ void UDPClient::connect(Ptr<Node> node, std::string server_addr, uint16_t port){
 
     Ipv4Address serverIP(server_addr.c_str());
     socket->Connect(InetSocketAddress(serverIP, port));
-    std::cout << "connected" << std::endl;
+    NFD_LOG_DEBUG("connected");
     socket->SetRecvCallback(MakeCallback(&UDPClient::receivePacket, this));
 }
 
@@ -66,16 +47,14 @@ void UDPClient::sendData(std::string data){
     Ptr<Packet> packet = Create<Packet>(m_data, data_copy.size());
     int res = socket->Send(packet);
     if (res >= 0)
-      std::cout << "Sent " << res << std::endl;
+      NFD_LOG_DEBUG("Sent " << res);
     else
-      std::cout << "Failed" << std::endl;
+      NFD_LOG_DEBUG("Failed");
       
 }
 
 void UDPClient::receivePacket(Ptr<Socket> sock){
     Ptr<Packet> packet = sock->Recv(1472,0);
-
-    std::cout<<"Packet Size:"<<packet->GetSize()<<std::endl;
 
     uint8_t *buffer = new uint8_t[packet->GetSize () + 1];
 
@@ -83,7 +62,7 @@ void UDPClient::receivePacket(Ptr<Socket> sock){
     buffer[packet->GetSize()] = 0;
     std::string receiveBuffer = std::string((char*)buffer);
 
-    std::cout<<"Data Received:"<< receiveBuffer << std::endl;
+    NFD_LOG_DEBUG("Data Received: " << receiveBuffer);
 
     std::vector<std::string> results;
     boost::split(results, receiveBuffer, boost::is_any_of("/"));
@@ -103,7 +82,7 @@ void UDPClient::receivePacket(Ptr<Socket> sock){
       callback(results);
     }
     else
-      std::cout << "Received response for unknown callback: " << reqID << std::endl;
+      NFD_LOG_DEBUG("Received response for unknown callback: " << reqID);
 }
 
 
@@ -113,7 +92,7 @@ void UDPClient::registerReceiveCallback(Callback<void, std::vector<std::string>>
   if (it == registeredCallbacks.end())
     registeredCallbacks[callback_id] = on_receive;
   else
-    std::cout << "Repeat request for callback id: " << callback_id << std::endl;
+    NFD_LOG_DEBUG("Repeat request for callback id: " << callback_id);
 }
 
 
