@@ -162,49 +162,67 @@ namespace ns3
     ndnHelper.Install(nodes);
 
     // Set BestRoute strategy
+    std::string broadcast_prefix = "/b";
     ndn::StrategyChoiceHelper::Install(nodes, "/", "/localhost/nfd/strategy/best-route");
+    ndn::StrategyChoiceHelper::Install(nodes, broadcast_prefix, "/localhost/nfd/strategy/multicast");
+    
 
     // Installing global routing interface on all ndn nodes
     ndn::GlobalRoutingHelper ndnGlobalRoutingHelper;
     ndnGlobalRoutingHelper.Install(nodes);
+    ndnGlobalRoutingHelper.AddOrigins(broadcast_prefix, nodes);
+
+    UDPClient::instance().connect(tempNodes0.Get(1), "192.168.1.6", 3000);
 
     // Install NDN applications
-    std::string prefix = "/prefix";
+    std::string prefix = "";
 
-    ndn::AppHelper consumerHelper("DerivedConsumer");
+    int producer_count = 2;
+
+    ndn::AppHelper consumerHelper("DWebConsumer");
     // Consumer will request /prefix/0, /prefix/1, ...
-    consumerHelper.SetPrefix("/prefix");
-    consumerHelper.SetAttribute("Frequency", StringValue("1")); // 10 interests a second
+    // consumerHelper.SetPrefix("/prefixtemp");
+    consumerHelper.SetAttribute("Frequency", StringValue("10")); // 10 interests a second
     consumerHelper.SetAttribute("MaxSeq", IntegerValue(0));
     consumerHelper.SetAttribute("ProduceRate", StringValue("0.25"));
-    consumerHelper.SetAttribute("TotalProducerCount", UintegerValue(1));
+    consumerHelper.SetAttribute("TotalProducerCount", UintegerValue(producer_count));
     consumerHelper.SetAttribute("StartingMetadataCap", UintegerValue(10));
     consumerHelper.SetAttribute("NumberOfContents", StringValue("100")); // 10 different contents
     consumerHelper.Install(nodes.Get(3));                        // first node
-
+    consumerHelper.Install(nodes.Get(5)); 
     // consumerHelper.SetPrefix("/prefix");
     // consumerHelper.Install(nodes.Get(0));  
 
     // Producer
     ndn::AppHelper producerHelper("DWebProducer");
     // Producer will reply to all requests starting with /prefix
-    ndnGlobalRoutingHelper.AddOrigins(prefix, nodes.Get(2));
-    producerHelper.SetPrefix("/prefix");
+    // ndnGlobalRoutingHelper.AddOrigins(prefix, nodes.Get(2));
+    // ndnGlobalRoutingHelper.AddOrigins(prefix, nodes.Get(7));
+
+    
+    // producerHelper.SetPrefix("/prefixtemp");
     producerHelper.SetAttribute("PayloadSize", StringValue("1024"));
     producerHelper.SetAttribute("ProduceRate", StringValue("0.25"));
-    producerHelper.SetAttribute("TotalProducerCount", UintegerValue(1));
-    producerHelper.SetAttribute("ProducerNumber", UintegerValue(0));
-    ApplicationContainer temp = producerHelper.Install(nodes.Get(2)); // last node
+    producerHelper.SetAttribute("TotalProducerCount", UintegerValue(producer_count));
+
+    NodeContainer producers;
+
+    producers.Add(nodes.Get(2));
+    producers.Add(nodes.Get(7));
+
+    for (int i = 0; i < producer_count; ++i){
+      producerHelper.SetAttribute("ProducerNumber", UintegerValue(i));
+      producerHelper.Install(producers.Get(i));
+    }
+
    
-    UDPClient::instance().connect(tempNodes0.Get(1), "192.168.1.6", 3000);
+
 
     ndn::GlobalRoutingHelper::CalculateRoutes();
 
     Simulator::Stop(Seconds(30)); // We need to modify time of simulation as per our requirements. We can have more simulation time if we cants to test Ethereum or Docker Container.
     ndn::CsTracer::InstallAll("cs-trace.txt", Seconds(1));
     ndn::AppDelayTracer::InstallAll("app-delays-trace_3.txt");
-    //ndn::L3RateTracer::InstallAll("rate-trace.txt", Seconds(1.0));
-    //L2RateTracer::InstallAll("drop-trace.txt", Seconds(0.5));
     Simulator::Run();
     Simulator::Destroy();
 

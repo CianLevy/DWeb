@@ -19,8 +19,8 @@
  * @author Xiaoke Jiang <shock.jiang@gmail.com>
  **/
 
-#ifndef NDN_CONSUMER_DERIVED_H
-#define NDN_CONSUMER_DERIVED_H
+#ifndef DWEB_CONSUMER_H
+#define DWEB_CONSUMER_H
 
 #include "ns3/ndnSIM/model/ndn-common.hpp"
 
@@ -34,23 +34,15 @@
 #include "ns3/uinteger.h"
 #include "ns3/double.h"
 #include "ns3/random-variable-stream.h"
-#include "ns3/ndnSIM/apps/ndn-consumer-zipf-mandelbrot.hpp"
+#include "ns3/ndnSIM/apps/ndn-consumer-cbr.hpp"
 
 
 namespace ns3 {
 namespace ndn {
 
-/**
- * @ingroup ndn-apps
- * @brief NDN app requesting contents following Zipf-Mandelbrot Distbituion
- *
- * The class implements an app which requests contents following Zipf-Mandelbrot Distribution
- * Here is the explaination of Zipf-Mandelbrot Distribution:
- *http://en.wikipedia.org/wiki/Zipf%E2%80%93Mandelbrot_law
- */
-class DerivedConsumer : public ConsumerZipfMandelbrot {
+class DWebConsumer : public ConsumerCbr {
 public:
-  DerivedConsumer();
+  DWebConsumer();
 
   static TypeId
   GetTypeId(void);
@@ -74,6 +66,27 @@ public:
 
   void updateMetadataRange();
 
+  void
+  ScheduleNextPacket();
+
+  uint32_t
+  GetNextSeq();
+
+  void
+  UpdateMetadataDistribution(uint32_t numOfContents);
+
+  void
+  SetQ(double q);
+
+  double
+  GetQ() const;
+
+  void
+  SetS(double s);
+
+  double
+  GetS() const;
+
 private:
   uint32_t objectCount = 0;
   std::map<std::string, std::string> OIDtoMetadata;
@@ -89,8 +102,13 @@ private:
 
   Ptr<NormalRandomVariable> requestDistribution;
 
+  double m_q;                 // q in (k+q)^s
+  double m_s;                 // s in (k+q)^s
+  std::vector<double> m_Pcum; // cumulative probability
+  Ptr<UniformRandomVariable> m_seqRng;
+
 };
 
 } /* namespace ndn */
 } /* namespace ns3 */
-#endif /* NDN_CONSUMER_ZIPF_MANDELBROT_H_ */
+#endif

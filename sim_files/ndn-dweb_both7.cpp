@@ -170,7 +170,7 @@ namespace ns3
     // Install NDN applications
     std::string prefix = "/prefix";
 
-    ndn::AppHelper consumerHelper("DerivedConsumer");
+    ndn::AppHelper consumerHelper("DWebConsumer");
     // Consumer will request /prefix/0, /prefix/1, ...
     consumerHelper.SetPrefix("/prefix");
     consumerHelper.SetAttribute("Frequency", StringValue("10")); // 10 interests a second

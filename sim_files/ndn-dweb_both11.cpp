@@ -53,6 +53,7 @@ Modified by: Raman Singh <rasingh@tcd.ie>,<raman.singh@thapar.edu> Post Doctoral
 #include "ns3/olsr-helper.h"
 #include "ns3/ipv4-static-routing-helper.h"
 #include "ns3/ipv4-list-routing-helper.h"
+#include "ns3/random-variable-stream.h"
 #include <iostream>
 #include <ctime>
 #include <cstdlib>
@@ -62,38 +63,45 @@ Modified by: Raman Singh <rasingh@tcd.ie>,<raman.singh@thapar.edu> Post Doctoral
 
 
 #include "ns3/ptr.h"
-#include "ndn-dweb_both7/dweb-producer.hpp"
+#include "ndn-dweb_both11/dweb-producer.hpp"
 
 #include <chrono>
 #include <thread>
 
-uint32_t nLocality = 10;  //Number of gateway routers
-uint32_t n_requests = 20; // Number of interests shown by each consumer in ndn
+uint32_t node_count = 50;  //Number of gateway routers
+double consumer_proportion = 0.8;
+double producer_proportion = 0.2;
 std::string repoPath = "/home/cian/Documents/GitHub/DWeb";
-std::ifstream file(repoPath + "/topologies/topology10.csv");  // Topology file for both ns-3 and ndn network
-std::ifstream file1(repoPath + "/topologies/topology10.csv"); // Topology file for ndn network static route. We can use above pointer also but I kept both separately.
-std::ifstream myfile(repoPath + "/txts/requests.txt");        // This is basically names of ndn prefix. ndnSIM require these prefix to identify requests from different consumers. We can aim for one prefix for one published object and can use OID as a prefix also. Need to study how ndn consumer/producer works to integrate it better with blockchain.
 
 namespace ns3
 {
-  NS_LOG_COMPONENT_DEFINE("ndn dweb");
+  NS_LOG_COMPONENT_DEFINE("DWeb");
+ 
+  NodeContainer randomNodeSample(double proportion){
+        int target_count = (int)(node_count * proportion);
+        Ptr<UniformRandomVariable> distribution = CreateObject<UniformRandomVariable>();
+        std::vector<int> nodes;
 
-  std::vector<std::string> read_prefixes()
-  {
-    std::string line;
-    std::vector<std::string> list_names;
+        NodeContainer result;
 
-    if (myfile.is_open())
-    {
-      while (getline(myfile, line))
-      {
-        // std::cout << line << '\n';
-        list_names.push_back(line);
-      }
-      myfile.close();
-    }
+        for (int i = 0; i < node_count; ++i)
+            nodes.push_back(i);
 
-    return list_names;
+        for (int i = 0; i < target_count; ++i){
+            uint32_t index = distribution->GetInteger(0, nodes.size() - 1);
+            std::string node_name = "Node" + std::to_string(nodes.at(index));
+            result.Add(Names::Find<Node>(node_name));
+
+            nodes.erase(nodes.begin() + index);
+        }
+    return result;
+  }
+
+  void printNodeContainer(NodeContainer nodes){
+        for (int i = 0; i < nodes.size(); ++i){
+            std::cout << Names::FindName(nodes.Get(i)) << " ";
+        }
+        std::cout << std::endl;
   }
 
   int main(int argc, char *argv[])
@@ -118,7 +126,7 @@ namespace ns3
 
     // These Temp nodes are created many places. Actually we can not connect ns-3 node with Docker COntainer directly as it has p2p network.
     // So we created these two intermediary for connecting Docker Container with ns-3 nodes.
-    // (* ns-3 node) ----- Temp node 0----Temp node 1------Docker Container
+    // // (* ns-3 node) ----- Temp node 0----Temp node 1------Docker Container
     NodeContainer tempNodes0;
     tempNodes0.Create(2);
 
@@ -139,15 +147,15 @@ namespace ns3
 
     //In this blog I have explained procedures needs to follow for Docker COntainer to ns-3 interaction
 
-    TapBridgeHelper tapBridge(interfacesgen.GetAddress(0));
-    tapBridge.SetAttribute("Mode", StringValue("UseBridge"));
-    tapBridge.SetAttribute("DeviceName", StringValue("tap_gate"));
-    tapBridge.Install(tempNodes0.Get(0), csmadevices0.Get(0));
-    std::cout << "The IP addreess of ns-3 node is:" << interfacesgen.GetAddress(1) << "\n";
+    // TapBridgeHelper tapBridge(interfacesgen.GetAddress(0));
+    // tapBridge.SetAttribute("Mode", StringValue("UseBridge"));
+    // tapBridge.SetAttribute("DeviceName", StringValue("tap_gate"));
+    // tapBridge.Install(tempNodes0.Get(0), csmadevices0.Get(0));
+    // std::cout << "NS-3 node IP address:" << interfacesgen.GetAddress(1) << "\n";
 
     // Reading topology
     AnnotatedTopologyReader topologyReader("", 25);
-    topologyReader.SetFileName("src/ndnSIM/examples/topologies/topology.txt");
+    topologyReader.SetFileName("src/ndnSIM/examples/topologies/topology2.txt");
     topologyReader.Read();
 
     // Install NDN stack on all ndn nodes
@@ -155,59 +163,83 @@ namespace ns3
 
     NodeContainer nodes;
 
-    for (uint32_t i = 0; i < nLocality; ++i)
+    for (uint32_t i = 0; i < node_count; ++i)
       nodes.Add(Names::Find<Node>("Node" + std::to_string(i)));
 
-    ndnHelper.setPolicy("nfd::cs::popularity_priority_queue");
+    // ndnHelper.setPolicy("nfd::cs::popularity_priority_queue");
+    ndnHelper.setPolicy("nfd::cs::lru"); 
+    ndnHelper.setCsSize(2);  
     ndnHelper.Install(nodes);
 
-    // Set BestRoute strategy
+
+    // Set the broadcast strategy under the prefix "broadcast". This is used
+    // to advertise new OIDs
+    std::string broadcast_prefix = "/broadcast";
     ndn::StrategyChoiceHelper::Install(nodes, "/", "/localhost/nfd/strategy/best-route");
+    ndn::StrategyChoiceHelper::Install(nodes, broadcast_prefix, "/localhost/nfd/strategy/multicast");
+    // Use best-route otherwise
+    // Note this will only apply to the initial FIB state as calculated after calling
+    // ndn::GlobalRoutingHelper::CalculateRoutes(). During the simulation the routing
+    // is therefore based on the FIB entries from the broadcast strategy.
+    
+    
 
     // Installing global routing interface on all ndn nodes
     ndn::GlobalRoutingHelper ndnGlobalRoutingHelper;
     ndnGlobalRoutingHelper.Install(nodes);
+    ndnGlobalRoutingHelper.AddOrigins(broadcast_prefix, nodes);
 
-    // Install NDN applications
-    std::string prefix = "/prefix";
 
+    boost::asio::io_service io_service;
+    
+    UDPClient::instance().connect("127.0.0.1", 3000, io_service);
+    std::thread thread1([&io_service]() { io_service.run(); });
+    
+
+
+    NodeContainer producers = randomNodeSample(producer_proportion);
+    std::cout << "[NodeContainer] Producer nodes: ";
+    printNodeContainer(producers);
+    int producer_count = producers.size();
+    std::string produce_rate = "0";
+    int initial_object_count = 5;
+
+    // Consumers
     ndn::AppHelper consumerHelper("DWebConsumer");
-    // Consumer will request /prefix/0, /prefix/1, ...
-    consumerHelper.SetPrefix("/prefix");
-    consumerHelper.SetAttribute("Frequency", StringValue("1")); // 10 interests a second
+    consumerHelper.SetAttribute("Frequency", StringValue("1"));
     consumerHelper.SetAttribute("MaxSeq", IntegerValue(0));
-    consumerHelper.SetAttribute("ProduceRate", StringValue("0.25"));
-    consumerHelper.SetAttribute("TotalProducerCount", UintegerValue(1));
-    consumerHelper.SetAttribute("StartingMetadataCap", UintegerValue(10));
-    consumerHelper.SetAttribute("NumberOfContents", StringValue("100")); // 10 different contents
-    consumerHelper.Install(nodes.Get(3));                        // first node
+    consumerHelper.SetAttribute("ProduceRate", StringValue(produce_rate));
+    consumerHelper.SetAttribute("TotalProducerCount", UintegerValue(producer_count));
+    consumerHelper.SetAttribute("StartingMetadataCap", UintegerValue(initial_object_count * producer_count));
+    consumerHelper.SetAttribute("Randomize", StringValue("uniform"));
 
-    // consumerHelper.SetPrefix("/prefix");
-    // consumerHelper.Install(nodes.Get(0));  
+    NodeContainer consumers = randomNodeSample(consumer_proportion);
+    std::cout << "[NodeContainer] Consumer nodes: ";
+    printNodeContainer(consumers);
+    consumerHelper.Install(consumers); 
 
-    // Producer
-    ndn::AppHelper producerHelper("DWebProducer");
-    // Producer will reply to all requests starting with /prefix
-    ndnGlobalRoutingHelper.AddOrigins(prefix, nodes.Get(2));
-    producerHelper.SetPrefix("/prefix");
-    producerHelper.SetAttribute("PayloadSize", StringValue("1024"));
-    producerHelper.SetAttribute("ProduceRate", StringValue("0.25"));
-    producerHelper.SetAttribute("TotalProducerCount", UintegerValue(1));
-    producerHelper.SetAttribute("ProducerNumber", UintegerValue(0));
-    ApplicationContainer temp = producerHelper.Install(nodes.Get(2)); // last node
-   
-    UDPClient::instance().connect(tempNodes0.Get(1), "192.168.1.6", 3000);
+    // Producers
+    ndn::AppHelper producerHelper("DWebProducer");  
+    producerHelper.SetAttribute("PayloadSize", StringValue("256"));
+    producerHelper.SetAttribute("ProduceRate", StringValue(produce_rate));
+    producerHelper.SetAttribute("TotalProducerCount", UintegerValue(producer_count));
+    producerHelper.SetAttribute("InitialObjects", UintegerValue(initial_object_count));
+
+
+    for (int i = 0; i < producer_count; ++i){
+      producerHelper.SetAttribute("ProducerNumber", UintegerValue(i));
+      producerHelper.Install(producers.Get(i));
+    }
 
     ndn::GlobalRoutingHelper::CalculateRoutes();
 
-    Simulator::Stop(Seconds(30)); // We need to modify time of simulation as per our requirements. We can have more simulation time if we cants to test Ethereum or Docker Container.
-    ndn::CsTracer::InstallAll("cs-trace.txt", Seconds(1));
-    ndn::AppDelayTracer::InstallAll("app-delays-trace_3.txt");
-    //ndn::L3RateTracer::InstallAll("rate-trace.txt", Seconds(1.0));
-    //L2RateTracer::InstallAll("drop-trace.txt", Seconds(0.5));
+    Simulator::Stop(Seconds(180));
     Simulator::Run();
     Simulator::Destroy();
 
+    io_service.stop();
+    thread1.join();
+  
     return 0;
   }
 

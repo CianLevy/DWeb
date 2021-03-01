@@ -53,6 +53,7 @@ Modified by: Raman Singh <rasingh@tcd.ie>,<raman.singh@thapar.edu> Post Doctoral
 #include "ns3/olsr-helper.h"
 #include "ns3/ipv4-static-routing-helper.h"
 #include "ns3/ipv4-list-routing-helper.h"
+#include "ns3/random-variable-stream.h"
 #include <iostream>
 #include <ctime>
 #include <cstdlib>
@@ -62,13 +63,12 @@ Modified by: Raman Singh <rasingh@tcd.ie>,<raman.singh@thapar.edu> Post Doctoral
 
 
 #include "ns3/ptr.h"
-#include "ndn-dweb_both7/dweb-producer.hpp"
+#include "ndn-dweb_both10/dweb-producer.hpp"
 
 #include <chrono>
 #include <thread>
 
-uint32_t nLocality = 10;  //Number of gateway routers
-uint32_t n_requests = 20; // Number of interests shown by each consumer in ndn
+uint32_t node_count = 10;  //Number of gateway routers
 std::string repoPath = "/home/cian/Documents/GitHub/DWeb";
 std::ifstream file(repoPath + "/topologies/topology10.csv");  // Topology file for both ns-3 and ndn network
 std::ifstream file1(repoPath + "/topologies/topology10.csv"); // Topology file for ndn network static route. We can use above pointer also but I kept both separately.
@@ -76,25 +76,14 @@ std::ifstream myfile(repoPath + "/txts/requests.txt");        // This is basical
 
 namespace ns3
 {
-  NS_LOG_COMPONENT_DEFINE("ndn dweb");
+  NS_LOG_COMPONENT_DEFINE("DWeb");
+ 
+  NodeContainer randomNodeSample(double proportion){
+      int target_count = (int)(node_count * proportion);
+      NormalRandomVariable distribution;
 
-  std::vector<std::string> read_prefixes()
-  {
-    std::string line;
-    std::vector<std::string> list_names;
-
-    if (myfile.is_open())
-    {
-      while (getline(myfile, line))
-      {
-        // std::cout << line << '\n';
-        list_names.push_back(line);
-      }
-      myfile.close();
-    }
-
-    return list_names;
   }
+
 
   int main(int argc, char *argv[])
   {
@@ -143,7 +132,7 @@ namespace ns3
     tapBridge.SetAttribute("Mode", StringValue("UseBridge"));
     tapBridge.SetAttribute("DeviceName", StringValue("tap_gate"));
     tapBridge.Install(tempNodes0.Get(0), csmadevices0.Get(0));
-    std::cout << "The IP addreess of ns-3 node is:" << interfacesgen.GetAddress(1) << "\n";
+    std::cout << "NS-3 node IP address:" << interfacesgen.GetAddress(1) << "\n";
 
     // Reading topology
     AnnotatedTopologyReader topologyReader("", 25);
@@ -155,56 +144,82 @@ namespace ns3
 
     NodeContainer nodes;
 
-    for (uint32_t i = 0; i < nLocality; ++i)
+    for (uint32_t i = 0; i < node_count; ++i)
       nodes.Add(Names::Find<Node>("Node" + std::to_string(i)));
 
     ndnHelper.setPolicy("nfd::cs::popularity_priority_queue");
     ndnHelper.Install(nodes);
 
     // Set BestRoute strategy
+    std::string broadcast_prefix = "/broadcast";
     ndn::StrategyChoiceHelper::Install(nodes, "/", "/localhost/nfd/strategy/best-route");
+    ndn::StrategyChoiceHelper::Install(nodes, broadcast_prefix, "/localhost/nfd/strategy/multicast");
+    
 
     // Installing global routing interface on all ndn nodes
     ndn::GlobalRoutingHelper ndnGlobalRoutingHelper;
     ndnGlobalRoutingHelper.Install(nodes);
+    ndnGlobalRoutingHelper.AddOrigins(broadcast_prefix, nodes);
+
+        boost::asio::io_service io_service2;
+    // boost::asio::ip::tcp::acceptor acceptor(io_service2);
+
+    // boost::asio::socket_base::reuse_address option(true);
+    // acceptor.set_option(option);
+
+    
+    UDPClient::instance().connect(tempNodes0.Get(1), "192.168.1.6", 3000, io_service2);
+    std::thread thread1([&io_service2]() { io_service2.run(); });
+
 
     // Install NDN applications
-    std::string prefix = "/prefix";
+    std::string prefix = "";
+
+    int producer_count = 2;
 
     ndn::AppHelper consumerHelper("DWebConsumer");
     // Consumer will request /prefix/0, /prefix/1, ...
-    consumerHelper.SetPrefix("/prefix");
-    consumerHelper.SetAttribute("Frequency", StringValue("1")); // 10 interests a second
+    // consumerHelper.SetPrefix("/prefixtemp");
+    consumerHelper.SetAttribute("Frequency", StringValue("10")); // 10 interests a second
     consumerHelper.SetAttribute("MaxSeq", IntegerValue(0));
     consumerHelper.SetAttribute("ProduceRate", StringValue("0.25"));
-    consumerHelper.SetAttribute("TotalProducerCount", UintegerValue(1));
+    consumerHelper.SetAttribute("TotalProducerCount", UintegerValue(producer_count));
     consumerHelper.SetAttribute("StartingMetadataCap", UintegerValue(10));
     consumerHelper.SetAttribute("NumberOfContents", StringValue("100")); // 10 different contents
     consumerHelper.Install(nodes.Get(3));                        // first node
-
+    consumerHelper.Install(nodes.Get(5)); 
     // consumerHelper.SetPrefix("/prefix");
     // consumerHelper.Install(nodes.Get(0));  
 
     // Producer
     ndn::AppHelper producerHelper("DWebProducer");
     // Producer will reply to all requests starting with /prefix
-    ndnGlobalRoutingHelper.AddOrigins(prefix, nodes.Get(2));
-    producerHelper.SetPrefix("/prefix");
+    // ndnGlobalRoutingHelper.AddOrigins(prefix, nodes.Get(2));
+    // ndnGlobalRoutingHelper.AddOrigins(prefix, nodes.Get(7));
+
+    
+    // producerHelper.SetPrefix("/prefixtemp");
     producerHelper.SetAttribute("PayloadSize", StringValue("1024"));
     producerHelper.SetAttribute("ProduceRate", StringValue("0.25"));
-    producerHelper.SetAttribute("TotalProducerCount", UintegerValue(1));
-    producerHelper.SetAttribute("ProducerNumber", UintegerValue(0));
-    ApplicationContainer temp = producerHelper.Install(nodes.Get(2)); // last node
-   
-    UDPClient::instance().connect(tempNodes0.Get(1), "192.168.1.6", 3000);
+    producerHelper.SetAttribute("TotalProducerCount", UintegerValue(producer_count));
+
+    NodeContainer producers;
+
+    producers.Add(nodes.Get(2));
+    producers.Add(nodes.Get(7));
+
+    for (int i = 0; i < producer_count; ++i){
+      producerHelper.SetAttribute("ProducerNumber", UintegerValue(i));
+      producerHelper.Install(producers.Get(i));
+    }
+
+
 
     ndn::GlobalRoutingHelper::CalculateRoutes();
 
     Simulator::Stop(Seconds(30)); // We need to modify time of simulation as per our requirements. We can have more simulation time if we cants to test Ethereum or Docker Container.
     ndn::CsTracer::InstallAll("cs-trace.txt", Seconds(1));
     ndn::AppDelayTracer::InstallAll("app-delays-trace_3.txt");
-    //ndn::L3RateTracer::InstallAll("rate-trace.txt", Seconds(1.0));
-    //L2RateTracer::InstallAll("drop-trace.txt", Seconds(0.5));
     Simulator::Run();
     Simulator::Destroy();
 
