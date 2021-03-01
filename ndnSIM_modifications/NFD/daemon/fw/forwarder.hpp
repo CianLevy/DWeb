@@ -38,6 +38,7 @@
 #include "table/dead-nonce-list.hpp"
 #include "table/network-region-table.hpp"
 #include "magic_utils.hpp"
+#include "ns3/ptr.h"
 
 namespace nfd {
 
@@ -297,6 +298,7 @@ private:
   shared_ptr<Face>   m_csFace;
   shared_ptr<magic::PopularityCounter> m_popCounter;
   std::string           m_id = "null";
+  ns3::Ptr<ns3::UniformRandomVariable> m_rand;
 
   // allow Strategy (base class) to enter pipelines
   friend class fw::Strategy;

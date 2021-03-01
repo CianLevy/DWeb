@@ -24,6 +24,7 @@
 #include "ns3/uinteger.h"
 #include "ns3/packet.h"
 #include "ns3/simulator.h"
+#include "ns3/names.h"
 
 #include "model/ndn-l3-protocol.hpp"
 #include "helper/ndn-fib-helper.hpp"
@@ -86,14 +87,18 @@ DWebProducer::GetTypeId(void)
                     UintegerValue(10),
                     MakeUintegerAccessor(&DWebProducer::starting_objects),
                     MakeUintegerChecker<uint32_t>());
+      // .AddAttribute("ndnGlobalRoutingHelper", 
+      //               "", 
+      //               MakePtrAccessor(&DWebProducer::ndnGlobalRoutingHelper));
+
   return tid;
 }
 
 DWebProducer::DWebProducer()
+: m_rand(CreateObject<UniformRandomVariable>())
 {
   // m_virtualPayloadSize = 1024;
   NS_LOG_FUNCTION_NOARGS();
-
 }
 
 
@@ -103,7 +108,8 @@ DWebProducer::publishInitialObjects(){
     std::string metadata = getNextMetadataValue();
     publishAndAdvertise(metadata);
   }
-  publishNext();
+  if (produce_delay > 0)
+    publishNext();
 }
 
 // inherited from Application base class.
@@ -113,7 +119,12 @@ DWebProducer::StartApplication()
   NS_LOG_FUNCTION_NOARGS();
   App::StartApplication();
 
-  Simulator::Schedule(Time(Seconds(1)), &DWebProducer::publishInitialObjects, this);
+  m_name  = Names::FindName(m_node);
+
+  if (m_name.empty())
+    m_name = boost::lexical_cast<std::string>(m_node->GetId());
+
+  Simulator::Schedule(Time(Seconds(2)), &DWebProducer::publishInitialObjects, this);
   FibHelper::AddRoute(GetNode(), m_prefix, m_face, 0);
 }
 
@@ -195,7 +206,7 @@ DWebProducer::publishDataOnBlockchain(std::string metadata, shared_ptr<::ndn::Bu
   std::string test(temp);
   UDPClient::instance().sendData("set/" + std::to_string(callback_id) + "/" + std::to_string(GetNode()->GetId()) + "/" + metadata + "/" + test + "\n");
 
-  NFD_LOG_DEBUG("Attempting to publish " << metadata);
+  NFD_LOG_DEBUG(m_name << ": Attempting to publish metadata: " << metadata);
 }
 
 shared_ptr<::ndn::Buffer>
@@ -231,13 +242,30 @@ DWebProducer::successfulBlockchainPublishCallback(std::vector<std::string> split
     std::string oid = split_response.at(2);
 
     if (oid != "None"){
-      shared_ptr<Name> prefix = make_shared<Name>(m_prefix);
-      prefix->append(oid);
+      // shared_ptr<Name> prefix = make_shared<Name>(m_prefix);
+      // prefix->append(oid);
+      shared_ptr<Name> prefix = make_shared<Name>(oid);
       FibHelper::AddRoute(GetNode(), *prefix, m_face, 0);
-      NFD_LOG_DEBUG("Published new oid " << *prefix);
+
+      // ndnGlobalRoutingHelper.AddOrigins(oid, m_node);
+      // ndn::GlobalRoutingHelper::CalculateRoutes();
+
+      shared_ptr<Interest> new_interest = make_shared<Interest>();
+      new_interest->setNonce(m_rand->GetValue(0, std::numeric_limits<uint32_t>::max()));
+      std::string name3 = "/broadcast/" + oid;
+      shared_ptr<Name> n = make_shared<Name>(name3);
+      new_interest->setName(*n);
+
+      m_transmittedInterests(new_interest, this, m_face);
+      m_appLink->onReceiveInterest(*new_interest);
+
+
+      NFD_LOG_DEBUG(m_name << ": Published new object. Metadata: " << split_response.at(3) << " oid: " << *prefix);
 
       recordPublishedOID(split_response.at(3), oid);
     }
+    else
+      NFD_LOG_DEBUG(m_name << ": Publication failed for metadata: " << split_response.at(3));
     
 }
 
@@ -281,14 +309,14 @@ DWebProducer::publishNext(){
 
 void
 DWebProducer::ScheduleNextProduce(){
-  if (!m_publishEvent.IsRunning())
+  if (produce_delay > 0 && !m_publishEvent.IsRunning())
     m_publishEvent = Simulator::Schedule(Seconds(produce_delay), &DWebProducer::publishNext, this);
 }
 
 void
 DWebProducer::setProduceRate(double rate){
   produce_rate = rate;
-  produce_delay = 1 / rate;
+  produce_delay = (produce_rate > 0 ) ? 1 / rate : -1;
 }
 
 double 

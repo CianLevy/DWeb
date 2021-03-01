@@ -36,8 +36,8 @@
 
 #include "face/null-face.hpp"
 
-
-
+#include "ns3/random-variable-stream.h"
+#include "table/fib-nexthop.hpp"
 
 namespace nfd {
 
@@ -58,6 +58,7 @@ Forwarder::Forwarder(FaceTable& faceTable)
   , m_strategyChoice(*this)
   , m_csFace(face::makeNullFace(FaceUri("contentstore://")))
   , m_popCounter(make_shared<magic::PopularityCounter>())
+  , m_rand(ns3::CreateObject<ns3::UniformRandomVariable>())
 {
   m_pit.addPopCounter(m_popCounter);
   m_cs.addPopCounter(m_popCounter);
@@ -146,10 +147,42 @@ Forwarder::onIncomingInterest(const FaceEndpoint& ingress, const Interest& inter
 
   std::string name_str = interest.getName().toUri(ndn::name::UriFormat::DEFAULT);
 
-  std::string::size_type i = name_str.find("/prefix/");
+  std::string broadcast = "/broadcast/";
+  std::string::size_type k = name_str.find(broadcast);
 
-  if (i != std::string::npos)
-      std::cout << "interest is for actual request" << std::endl;
+  if (k != std::string::npos){
+    Face* face = &ingress.face;
+    Name interest_name = interest.getName();
+    std::string test = interest_name.at(interest_name.size() - 1).toUri(ndn::name::UriFormat::DEFAULT);
+    shared_ptr<Name> new_prefix = make_shared<Name>(test);
+  
+    if (face == nullptr) {
+      NFD_LOG_DEBUG("fib/add-nexthop(" << *new_prefix << ',' <<
+                    "): FAIL unknown-faceid");
+    }
+    
+
+    fib::Entry* entry = m_fib.insert(*new_prefix).first;
+
+    Name broadcast_prefix(broadcast);
+    const fib::Entry& broadcast_entry= m_fib.findLongestPrefixMatch(broadcast_prefix);
+
+    uint32_t cost = 1;
+
+    auto next_hops = broadcast_entry.getNextHops();
+    auto next_hop = std::find_if(next_hops.begin(), next_hops.end(),
+      [&face] (const fib::NextHop& nexthop) {
+        return &nexthop.getFace() == face;
+      });
+
+    if (next_hop != next_hops.end())
+      cost = next_hop->getCost();
+    
+
+    m_fib.addOrUpdateNextHop(*entry, *face, cost);
+    NFD_LOG_DEBUG("Adding new entry from broadcast " << *new_prefix);
+    
+  }
 
   // detect duplicate Nonce in PIT entry
   int dnw = fw::findDuplicateNonce(*pitEntry, interest.getNonce(), ingress.face);
@@ -228,6 +261,9 @@ Forwarder::onContentStoreMiss(const FaceEndpoint& ingress,
       // scope control is unnecessary, because privileged app explicitly wants to forward
       this->onOutgoingInterest(pitEntry, FaceEndpoint(*nextHopFace, 0), interest);
     }
+    else
+      NFD_LOG_DEBUG("onContentStoreMiss interest=" << interest.getName()
+                    << " nexthop is null");
     return;
   }
 

@@ -32,6 +32,10 @@
 #include "udp-client.hpp"
 #include "ns3/ndnSIM/apps/ndn-app.hpp"
 
+#include "ns3/ndnSIM-module.h"
+
+#include "ns3/random-variable-stream.h"
+
 namespace ns3 {
 namespace ndn {
 /**
@@ -86,6 +90,12 @@ private:
   EventId m_publishEvent; 
 
   std::map<std::string, int> OIDtoMetadata;
+
+  ndn::GlobalRoutingHelper ndnGlobalRoutingHelper;
+
+  Ptr<UniformRandomVariable> m_rand;
+
+  std::string m_name;
 
   void
   setProduceRate(double rate);
