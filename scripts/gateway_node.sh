@@ -25,7 +25,7 @@ fi
 BOOTNODE_URL=${BOOTNODE_URL:-$(./getbootnodeurl.sh)}
 echo "Running new container $contname..."
 
-docker run -p 127.0.0.1:8545:8545 -itd --name ${contname} --network bridge --publish-all=true  -v $DATA_ROOT:/root/.ethereum -v $DATA_HASH:/root/.ethash -v $(pwd)/genesis.json:/opt/genesis.json $IMGNAME 
+docker run -p 127.0.0.1:3000:3000/udp -p 127.0.0.1:3001:3001/udp -itd --name ${contname} --network bridge --publish-all=true  -v $DATA_ROOT:/root/.ethereum -v $DATA_HASH:/root/.ethash -v $(pwd)/genesis.json:/opt/genesis.json $IMGNAME 
 
 docker exec -it ${contname} apk add gcc libc-dev python3-dev python3 py3-pip busybox-extras 
 docker exec -it ${contname} pip3 install web3
@@ -59,62 +59,62 @@ docker exec -itd ${contname} geth --password pass_file.txt --unlock primary --rp
 docker exec -itd ${contname} geth --mine --minerthreads 1
 
 
-# Create brdiges to connect docker containers with ns-3 nodes
-sudo brctl addbr br-gate
+# # Create brdiges to connect docker containers with ns-3 nodes
+# sudo brctl addbr br-gate
 
 
-# Create tap devices, counting equal to number of containers
+# # Create tap devices, counting equal to number of containers
 
 
-sudo tunctl -t tap_gate
+# sudo tunctl -t tap_gate
 
-sudo ifconfig tap_gate 0.0.0.0 promisc up
-
-
-# Connecting tap devices and bridges
+# sudo ifconfig tap_gate 0.0.0.0 promisc up
 
 
-sudo brctl addif br-gate tap_gate
-sudo ifconfig br-gate 192.168.1.5 netmask 255.255.255.248 up   #IP address of bridge, also change IP address of VM Machine
-sudo ifconfig br-gate up
-
-# Allow traffic across bridges
-
-pushd /proc/sys/net/bridge
-for f in bridge-nf-*; do echo 0 > $f; done
-popd
-
-# Start all container, sometime some docker stops automatically
-
-#sudo docker container start $(docker container ls -aq)
-
-#Find the pid of containers
+# # Connecting tap devices and bridges
 
 
-pidmulti=$(docker inspect --format '{{ .State.Pid }}' ${contname})
+# sudo brctl addif br-gate tap_gate
+# sudo ifconfig br-gate 192.168.1.5 netmask 255.255.255.248 up   #IP address of bridge, also change IP address of VM Machine
+# sudo ifconfig br-gate up
 
-# Setting namespaces and interfaces with MAC and IP address for Other blocks
+# # Allow traffic across bridges
 
-sudo mkdir -p /var/run/netns
-ln -s /proc/$pidmulti/ns/net /var/run/netns/$pidmulti
+# pushd /proc/sys/net/bridge
+# for f in bridge-nf-*; do echo 0 > $f; done
+# popd
+
+# # Start all container, sometime some docker stops automatically
+
+# #sudo docker container start $(docker container ls -aq)
+
+# #Find the pid of containers
 
 
-#Now, We need to create "peer" interfaces: internal-left and external-left. The internal-left will be attached with the bridge.
+# pidmulti=$(docker inspect --format '{{ .State.Pid }}' ${contname})
 
-sudo ip link add internal1 type veth peer name external1
-sudo brctl addif br-gate internal1
-sudo ip link set internal1 up
+# # Setting namespaces and interfaces with MAC and IP address for Other blocks
 
-# Random MAC address
-hexchars="0123456789ABCDEF"
-end=$( for i in {1..8} ; do echo -n ${hexchars:$(( $RANDOM % 16 )):1} ; done | sed -e 's/\(..\)/:\1/g' )
-MAC_ADDR="12:34"$end
+# sudo mkdir -p /var/run/netns
+# ln -s /proc/$pidmulti/ns/net /var/run/netns/$pidmulti
 
-sudo ip link set external1 netns $pidmulti
-sudo ip netns exec $pidmulti ip link set dev external1 name eth1
-sudo ip netns exec $pidmulti ip link set eth1 address $MAC_ADDR
-sudo ip netns exec $pidmulti ip link set eth1 up
-sudo ip netns exec $pidmulti ip addr add 192.168.1.6/29 dev eth1    #IP address of VM Machine also change IP address of bridge
-sudo ip netns exec $pidmulti ip route add default via 192.168.1.2 dev eth1;
+
+# #Now, We need to create "peer" interfaces: internal-left and external-left. The internal-left will be attached with the bridge.
+
+# sudo ip link add internal1 type veth peer name external1
+# sudo brctl addif br-gate internal1
+# sudo ip link set internal1 up
+
+# # Random MAC address
+# hexchars="0123456789ABCDEF"
+# end=$( for i in {1..8} ; do echo -n ${hexchars:$(( $RANDOM % 16 )):1} ; done | sed -e 's/\(..\)/:\1/g' )
+# MAC_ADDR="12:34"$end
+
+# sudo ip link set external1 netns $pidmulti
+# sudo ip netns exec $pidmulti ip link set dev external1 name eth1
+# sudo ip netns exec $pidmulti ip link set eth1 address $MAC_ADDR
+# sudo ip netns exec $pidmulti ip link set eth1 up
+# sudo ip netns exec $pidmulti ip addr add 192.168.1.6/29 dev eth1    #IP address of VM Machine also change IP address of bridge
+# sudo ip netns exec $pidmulti ip route add default via 192.168.1.2 dev eth1;
 
 

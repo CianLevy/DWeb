@@ -26,10 +26,11 @@ class SearchEngine:
     def index_object(self, metadata, blockchain_index):
         if metadata in self.indexed_objects:
             logger.info(f'Attempted to index pre-existing value: {metadata}')
+            return False
         else:
             self.indexed_objects[metadata] = blockchain_index
             logger.info(f'Indexed new value {metadata}')
-
+            return True
 
 class EthereumWrapper:
 
@@ -89,9 +90,10 @@ class EthereumWrapper:
             self.object_data.append((oid, metadata, producer_node))
             return oid
         else:
-            self.search_engine.index_object(metadata, self.index)
-            self.index += 1
-            res = self.contract.functions.SetObjectInfo(oid, metadata).transact()
+            res = self.search_engine.index_object(metadata, self.index)
+            if res:
+                self.index += 1
+                res = self.contract.functions.SetObjectInfo(oid, metadata).transact()
 
             return oid
 

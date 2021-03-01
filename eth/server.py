@@ -59,8 +59,11 @@ class RequestHandler:
             # 'verify' request structure is: verify/req_id/oid/metadata/data
             res = self.ethereum_wrapper.verify_object(split_req[2], split_req[3], split_req[4])
             logger.info(f"Result of verfication request for {split_req[2]} is {res}")
+            if not res:
+                logger.info(f"Metadata {split_req[3]} data {split_req[4][:10]}")
 
-            return f"{split_req[1]}/oid/{res}/{split_req[2]}"
+            # return req_id/oid/res/oid/metadata
+            return f"{split_req[1]}/oid/{res}/{split_req[2]}/{split_req[3]}"
         else:
             logger.error(f'Received unknown request {req}')
             return None
@@ -73,7 +76,7 @@ class UDPServer:
         self.socket = sock = socket.socket(socket.AF_INET,
                                            socket.SOCK_DGRAM)
         self.eth_wrapper = EthereumWrapper('contracts/publishobject.sol',
-                                           'http://127.0.0.1:8545', False)
+                                           'http://127.0.0.1:8545', True)
         self.req_handler = RequestHandler(self.eth_wrapper)
         
         self.loop = asyncio.get_event_loop()
@@ -108,12 +111,13 @@ class UDPServer:
 
 
     def send(self, message, addr):
-        self.socket.sendto(message.encode(), addr)
+        addr2 = (addr[0], 3002)
+        self.socket.sendto(message.encode(), addr2)
 
 
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.ERROR)
 
 
 if __name__ == '__main__':
-    server = UDPServer("192.168.1.6", 3000)
+    server = UDPServer("0.0.0.0", 3000)
