@@ -13,6 +13,7 @@
 #include "ndn-cxx/interest.hpp"
 #include "ns3/ptr.h"
 #include "ns3/random-variable-stream.h"
+#include "table/priority_queue.hpp"
 
 namespace nfd {
 
@@ -29,9 +30,11 @@ public:
     bool isMaxPopularity(const ndn::Data& data);
 
     void updateInterestPopularityField(const ndn::Interest& interest, uint32_t popularity);
+    void setPopularityHeap(std::shared_ptr<MinHeap> heap);
 private:
     std::map<std::string, std::vector<std::chrono::nanoseconds>*> requestHistoryMap;
     std::string id = "null";
+    std::shared_ptr<MinHeap> popularity_heap = nullptr;
 };
 
 

@@ -81,9 +81,10 @@ private:
   insertToQueue(EntryRef i, bool isNewEntry);
 
 private:
-  std::map<EntryRef, std::shared_ptr<heapEntry>> m_entryInfoMap;
-  MinHeap m_heap;
+  std::map<std::string, std::shared_ptr<heapEntry>> m_entryInfoMap;
+  shared_ptr<MinHeap> m_heap;
   shared_ptr<magic::PopularityCounter> m_popCounter;
+  bool first_use = true;
 };
 
 } // namespace popularity_priority_queue

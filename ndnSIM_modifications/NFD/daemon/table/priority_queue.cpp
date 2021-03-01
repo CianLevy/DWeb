@@ -118,3 +118,21 @@ std::shared_ptr<heapEntry> MinHeap::getRightChild(std::shared_ptr<heapEntry> ent
     else
         return nullptr;
 }
+
+
+void MinHeap::print(){
+    for (auto entry : heap){
+        std::cout << entry->popularity << " ";
+
+        if (heap.at(0)->popularity > entry->popularity)
+            std::cout << "misorder detected" << std::endl;
+    }
+    std::cout << std::endl;
+}
+
+uint32_t MinHeap::peekPopularity(){
+    if (heap.size() > 0)
+        return heap.at(0)->popularity;
+    else
+        return 0;
+}

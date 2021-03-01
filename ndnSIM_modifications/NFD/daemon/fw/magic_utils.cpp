@@ -107,10 +107,16 @@ bool PopularityCounter::isMaxPopularity(const ndn::Data& data){
     NFD_LOG_DEBUG(id << " " << params.getLogUUID()  << " return max " << \
         params.getPopularity() << " local " << local_popularity << " req " << data.getName());
 
-    // if (params.getPopularity() > local_popularity)
-    //     return true;
+    uint32_t min_popularity_required = (popularity_heap) ? popularity_heap->peekPopularity() : 1;
+
+    if (params.getPopularity() > min_popularity_required && params.getPopularity() >= local_popularity)
+        return true;
 
     return false;
+}
+
+void  PopularityCounter::setPopularityHeap(std::shared_ptr<MinHeap> heap){
+    popularity_heap = heap;
 }
 
 

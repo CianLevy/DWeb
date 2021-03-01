@@ -35,10 +35,10 @@ const std::string PopularityPriorityPolicy::POLICY_NAME = "popularity_priority_q
 NFD_REGISTER_CS_POLICY(PopularityPriorityPolicy);
 
 PopularityPriorityPolicy::PopularityPriorityPolicy()
-  : Policy(POLICY_NAME)
+  : Policy(POLICY_NAME),
+  m_heap(make_shared<MinHeap>())
 {
-  Cs* c = getCs();
-  m_popCounter = c->m_popCounter;
+
 }
 
 
@@ -58,8 +58,10 @@ PopularityPriorityPolicy::doAfterRefresh(EntryRef i)
 void
 PopularityPriorityPolicy::doBeforeErase(EntryRef i)
 {
-  shared_ptr<heapEntry> entry = m_entryInfoMap[i];
-  m_heap.remove(entry);
+  Name n = i->getData().getName();
+  std::string name = n.toUri(ndn::name::UriFormat::DEFAULT);
+  shared_ptr<heapEntry> entry = m_entryInfoMap[name];
+  m_heap->remove(entry);
   // m_queue.get<1>().erase(i);
 }
 
@@ -75,31 +77,47 @@ PopularityPriorityPolicy::evictEntries()
   BOOST_ASSERT(this->getCs() != nullptr);
   while (this->getCs()->size() > this->getLimit()) {
     // BOOST_ASSERT(!m_queue.empty());
-    shared_ptr<heapEntry> entry = m_heap.pop();
+    m_heap->print();
+    shared_ptr<heapEntry> entry = m_heap->pop();
 
-    this->emitSignal(beforeEvict, *entry->entry);
+    if (entry->popularity > 0){
+      std::cout << "evicted";
+    }
+
+    this->emitSignal(beforeEvict, entry->entry);
   }
 }
 
 void
 PopularityPriorityPolicy::insertToQueue(EntryRef i, bool isNewEntry)
 {
+  if (first_use){
+    Cs* c = getCs();
+    m_popCounter = c->m_popCounter;
+    first_use = false;
+
+    m_popCounter->setPopularityHeap(m_heap);
+  }
+
+  Name n = i->getData().getName();
+  std::string name = n.toUri(ndn::name::UriFormat::DEFAULT);
+
   if (isNewEntry){
     shared_ptr<heapEntry> new_entry = make_shared<heapEntry>();
-    new_entry->entry = &i;
-
-    Name n = i->getData().getName();
+    new_entry->entry = i;
+ 
     new_entry->popularity = m_popCounter->getPopularity(n);
-    m_heap.insert(new_entry);
+    m_heap->insert(new_entry);
 
-    m_entryInfoMap[i] = new_entry;
+    
+
+    m_entryInfoMap[name] = new_entry;
   }
   else{
-    shared_ptr<heapEntry> entry = m_entryInfoMap[i];
-    Name n = i->getData().getName();
+    shared_ptr<heapEntry> entry = m_entryInfoMap[name];
     uint32_t popularity = m_popCounter->getPopularity(n);
 
-    m_heap.update(entry, popularity);
+    m_heap->update(entry, popularity);
   }
 
 }

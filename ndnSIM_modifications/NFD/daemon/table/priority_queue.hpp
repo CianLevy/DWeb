@@ -1,3 +1,8 @@
+#ifndef NFD_DAEMON_TABLE_MIN_HEAP
+#define NFD_DAEMON_TABLE_MIN_HEAP
+
+
+
 #include <string>
 #include <iostream>
 #include <memory>
@@ -11,7 +16,7 @@ struct heapEntry{
     uint32_t popularity;
     std::string name;
     int current_index;
-    EntryRef* entry;
+    EntryRef entry;
 };
 
 class MinHeap{
@@ -22,6 +27,10 @@ void insert(std::shared_ptr<heapEntry> entry);
 void update(std::shared_ptr<heapEntry> entry, uint32_t new_popularity);
 void remove(std::shared_ptr<heapEntry> entry);
 std::shared_ptr<heapEntry> pop();
+
+uint32_t peekPopularity();
+
+void print();
 
 
 
@@ -36,3 +45,4 @@ std::vector<std::shared_ptr<heapEntry>> heap;
 
 };
 
+#endif
