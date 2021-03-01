@@ -18,98 +18,114 @@ namespace ns3 {
 
 NS_LOG_COMPONENT_DEFINE("UDPClient");
 
+using namespace boost;
+
 UDPClient::UDPClient()
   : m_rand(CreateObject<UniformRandomVariable>())
 {
+
 }
 
-void UDPClient::connect(Ptr<Node> node, std::string server_addr, uint16_t port){
-    TypeId tid = TypeId::LookupByName ("ns3::UdpSocketFactory");
-    socket = Socket::CreateSocket(node, tid);
-
-    InetSocketAddress local = InetSocketAddress(Ipv4Address::GetAny(), port);
-
-    socket->Bind();
-
-    Ipv4Address serverIP(server_addr.c_str());
-    socket->Connect(InetSocketAddress(serverIP, port));
-    NFD_LOG_DEBUG("connected");
-    socket->SetRecvCallback(MakeCallback(&UDPClient::receivePacket, this));
+UDPClient::~UDPClient(){
+  socket->cancel();
 }
 
-void UDPClient::sendData(std::string data){
-    std::vector<uint8_t> data_copy(data.begin(), data.end());
+void UDPClient::connect(std::string server_addr, unsigned short port, boost::asio::io_service& io_service){
+  unsigned short recvPort = 3002;
 
-    std::stringstream peerAddressStringStream;
-    // peerAddressStringStream << Ipv4Address::ConvertFrom (m_peerAddress);
+  socket = std::make_shared<udp::socket>(io_service, udp::endpoint(udp::v4(), recvPort));
+  boost::system::error_code ec;
 
-    uint8_t *m_data = &data_copy[0];
-    Ptr<Packet> packet = Create<Packet>(m_data, data_copy.size());
-    int res = socket->Send(packet);
-    if (res >= 0)
-      NFD_LOG_DEBUG("Sent " << res);
-    else
-      NFD_LOG_DEBUG("Failed");
-      
+  asio::ip::address ip_address = asio::ip::address::from_string(server_addr, ec);
+
+  recvEndpoint = std::make_shared<udp::endpoint>(ip_address, recvPort);
+
+  dockerEndpoint = std::make_shared<udp::endpoint>(ip_address, port);
+  
+  socket->async_receive_from(
+    boost::asio::buffer(recvBuffer), *recvEndpoint,
+    boost::bind(&UDPClient::handleReceive, this,
+      boost::asio::placeholders::error,
+      boost::asio::placeholders::bytes_transferred));
 }
 
-void UDPClient::receivePacket(Ptr<Socket> sock){
-    Ptr<Packet> packet = sock->Recv(1472,0);
+void UDPClient::handleReceive(const boost::system::error_code& error, std::size_t bytes_transferred) {
+  std::string receiveBuffer = std::string((char*)recvBuffer.data(), bytes_transferred);
 
-    uint8_t *buffer = new uint8_t[packet->GetSize () + 1];
+  NFD_LOG_DEBUG("Data Received: " << receiveBuffer);
 
-    packet->CopyData(buffer, packet->GetSize());
-    buffer[packet->GetSize()] = 0;
-    std::string receiveBuffer = std::string((char*)buffer);
+  std::shared_ptr<std::vector<std::string>> results = std::make_shared<std::vector<std::string>>();
+  boost::split(*results, receiveBuffer, boost::is_any_of("/"));
+  std::string::size_type i = receiveBuffer.find('/');
 
-    NFD_LOG_DEBUG("Data Received: " << receiveBuffer);
+  uint32_t reqID = 0;
 
-    std::vector<std::string> results;
-    boost::split(results, receiveBuffer, boost::is_any_of("/"));
-    std::string::size_type i = receiveBuffer.find('/');
+  if (i != std::string::npos)
+    reqID = static_cast<uint32_t>(std::stoul(receiveBuffer.substr(0, i)));
 
-    uint32_t reqID = 0;
+  callbackResponses[reqID] = results;
 
-    if (i != std::string::npos)
-      reqID = static_cast<uint32_t>(std::stoul(receiveBuffer.substr(0, i)));
-
-    std::map<uint32_t, Callback<void, std::vector<std::string>>>::iterator it = registeredCallbacks.find(reqID);
-
-    if (it != registeredCallbacks.end()){
-      Callback<void, std::vector<std::string>> callback = (it->second);
-      registeredCallbacks.erase(it);
-      // (*callback)(receiveBuffer);
-      callback(results);
-    }
-    else
-      NFD_LOG_DEBUG("Received response for unknown callback: " << reqID);
+  socket->async_receive_from(
+    boost::asio::buffer(recvBuffer), *recvEndpoint,
+    boost::bind(&UDPClient::handleReceive, this,
+    boost::asio::placeholders::error,
+    boost::asio::placeholders::bytes_transferred));
 }
 
+
+void UDPClient::sendData(std::string data) {
+  auto message = std::make_shared<std::string>(data);
+
+  socket->async_send_to(
+    boost::asio::buffer(*message), *dockerEndpoint, 
+                  boost::bind(&UDPClient::sendCallback, this, message,
+                  boost::asio::placeholders::error,
+                  boost::asio::placeholders::bytes_transferred));
+}
+
+void UDPClient::sendCallback(std::shared_ptr<std::string> message,
+                const boost::system::error_code& ec,
+                std::size_t bytes_transferred) {
+  NFD_LOG_DEBUG("Sent " << bytes_transferred << " bytes");
+}
 
 void UDPClient::registerReceiveCallback(Callback<void, std::vector<std::string>> on_receive, uint32_t callback_id){
   std::map<uint32_t, Callback<void, std::vector<std::string>>>::iterator it = registeredCallbacks.find(callback_id);
 
-  if (it == registeredCallbacks.end())
+  if (it == registeredCallbacks.end()){
     registeredCallbacks[callback_id] = on_receive;
+    scheduleCallback(callback_id);
+  }
   else
     NFD_LOG_DEBUG("Repeat request for callback id: " << callback_id);
 }
 
 
+void UDPClient::scheduleCallback(uint32_t callback_id){
+  std::map<uint32_t, std::shared_ptr<std::vector<std::string>>>::iterator it = callbackResponses.find(callback_id);
+
+  if (it == callbackResponses.end())
+    Simulator::Schedule(Seconds(0.05), &UDPClient::scheduleCallback, this, callback_id);
+  else{
+    std::map<uint32_t, Callback<void, std::vector<std::string>>>::iterator it2 = registeredCallbacks.find(callback_id);
+
+    if (it2 != registeredCallbacks.end()){
+      Callback<void, std::vector<std::string>> callback = (it2->second);
+      registeredCallbacks.erase(it2);
+      // (*callback)(receiveBuffer);
+      callback(*it->second);
+    }
+    else
+      NFD_LOG_DEBUG("Received response for unknown callback: " << callback_id);
+   
+    m.lock();
+    callbackResponses.erase(it);
+    m.unlock();
+  }
+}
 
 uint32_t UDPClient::getCallbackID(){
   return m_rand->GetValue(0, std::numeric_limits<uint32_t>::max()); 
-}
-
-std::string UDPClient::extractOID(std::string response){
-  std::string::size_type i = response.find("oid/");
-
-  std::string oid = "None";
-
-  if (i != std::string::npos)
-    oid = response.substr(i + 4);
-
-  return oid;
 }
 
 }
