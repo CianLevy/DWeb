@@ -188,7 +188,7 @@ DWebConsumer::SendPacket()
 
     UDPClient::instance().registerReceiveCallback(MakeCallback(&DWebConsumer::FinalizeSend, this), callback_id);
     NFD_LOG_DEBUG("Callback registered: " << callback_id);
-    // ScheduleNextPacket();
+    ScheduleNextPacket();
 }
 
 void
@@ -207,9 +207,9 @@ DWebConsumer::FinalizeSend(std::vector<std::string> split_response)
 
         ConsumerCbr::SendPacket();
     }
-    else
-        // manually schedule next packet
-        ScheduleNextPacket();
+    // else
+    //     // manually schedule next packet
+    //     ScheduleNextPacket();
 
     NFD_LOG_DEBUG("Callback response oid: " << oid);
 

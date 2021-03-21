@@ -61,47 +61,56 @@ Modified by: Raman Singh <rasingh@tcd.ie>,<raman.singh@thapar.edu> Post Doctoral
 #include <sstream>
 #include <fstream>
 
-
+#include <stdlib.h>  
 #include "ns3/ptr.h"
 #include "ndn-dweb_both11/dweb-producer.hpp"
 
 #include <chrono>
 #include <thread>
 
-uint32_t node_count = 50;  //Number of gateway routers
+uint32_t node_count = 100;  //Number of gateway routers
 double consumer_proportion = 0.8;
 double producer_proportion = 0.2;
+double simulation_duration = 60;
 std::string repoPath = "/home/cian/Documents/GitHub/DWeb";
+// std::string produce_rate = "0.1";
+double produce_rate;
+int initial_object_count = 5;
+std::string cs_policy =   "nfd::cs::popularity_priority_queue"; //"nfd::cs::lru"; //
+double cache_budget = 0.6;
+bool magic_enabled = true;
+double initial_publish_split = 1;
+int total_objects = 100;
 
 namespace ns3
 {
   NS_LOG_COMPONENT_DEFINE("DWeb");
  
   NodeContainer randomNodeSample(double proportion){
-        int target_count = (int)(node_count * proportion);
-        Ptr<UniformRandomVariable> distribution = CreateObject<UniformRandomVariable>();
-        std::vector<int> nodes;
+    int target_count = (int)(node_count * proportion);
+    Ptr<UniformRandomVariable> distribution = CreateObject<UniformRandomVariable>();
+    std::vector<int> nodes;
 
-        NodeContainer result;
+    NodeContainer result;
 
-        for (int i = 0; i < node_count; ++i)
-            nodes.push_back(i);
+    for (int i = 0; i < node_count; ++i)
+      nodes.push_back(i);
 
-        for (int i = 0; i < target_count; ++i){
-            uint32_t index = distribution->GetInteger(0, nodes.size() - 1);
-            std::string node_name = "Node" + std::to_string(nodes.at(index));
-            result.Add(Names::Find<Node>(node_name));
+    for (int i = 0; i < target_count; ++i){
+      uint32_t index = rand() % (nodes.size() - 1); //distribution->GetInteger(0, nodes.size() - 1);
+      std::string node_name = "Node" + std::to_string(nodes.at(index));
+      result.Add(Names::Find<Node>(node_name));
 
-            nodes.erase(nodes.begin() + index);
-        }
+      nodes.erase(nodes.begin() + index);
+    }
     return result;
   }
 
   void printNodeContainer(NodeContainer nodes){
-        for (int i = 0; i < nodes.size(); ++i){
-            std::cout << Names::FindName(nodes.Get(i)) << " ";
-        }
-        std::cout << std::endl;
+    for (int i = 0; i < nodes.size(); ++i){
+      std::cout << Names::FindName(nodes.Get(i)) << " ";
+    }
+    std::cout << std::endl;
   }
 
   int main(int argc, char *argv[])
@@ -109,37 +118,49 @@ namespace ns3
 
     // These two instructions will make sure that ns-3 simulation work in real time and accept data from Docker Containers.
     GlobalValue::Bind("SimulatorImplementationType", StringValue("ns3::RealtimeSimulatorImpl"));
-    GlobalValue::Bind("ChecksumEnabled", BooleanValue(true));
+    // GlobalValue::Bind("ChecksumEnabled", BooleanValue(true));
 
     CommandLine cmd;
     cmd.Parse(argc, argv);
 
-    // These instructions set the default value of P2P network parameters like bandwidth, latency and Queue size.
-    Config::SetDefault("ns3::PointToPointNetDevice::DataRate", StringValue("200Mbps"));
-    Config::SetDefault("ns3::PointToPointChannel::Delay", StringValue("0ms"));
-    Config::SetDefault("ns3::QueueBase::MaxSize", StringValue("200p"));
+    for (int i = 0; i < argc; ++i)
+      std::cout << "Arg" << i << ": " << argv[i] << std::endl;
 
-    //Enable packet metadata, this will be used for tracing purpose.
-    Packet::EnablePrinting();
+    if (argc > 1)
+      cs_policy = argv[1];
+    if (argc > 2)
+      magic_enabled = boost::lexical_cast<bool>(argv[2]);
+    if (argc > 3)
+      cache_budget = std::stod(argv[3]);
+
+    srand(0);
+
+    // These instructions set the default value of P2P network parameters like bandwidth, latency and Queue size.
+    // Config::SetDefault("ns3::PointToPointNetDevice::DataRate", StringValue("200Mbps"));
+    // Config::SetDefault("ns3::PointToPointChannel::Delay", StringValue("0ms"));
+    // Config::SetDefault("ns3::QueueBase::MaxSize", StringValue("200p"));
+
+    // //Enable packet metadata, this will be used for tracing purpose.
+    // Packet::EnablePrinting();
 
     // Here we are creating (1) number of nodes (named as ghost_nodes) for creation of ns-3 network.
 
     // These Temp nodes are created many places. Actually we can not connect ns-3 node with Docker COntainer directly as it has p2p network.
     // So we created these two intermediary for connecting Docker Container with ns-3 nodes.
     // // (* ns-3 node) ----- Temp node 0----Temp node 1------Docker Container
-    NodeContainer tempNodes0;
-    tempNodes0.Create(2);
+    // NodeContainer tempNodes0;
+    // tempNodes0.Create(2);
 
-    CsmaHelper csma0;
-    csma0.SetChannelAttribute("DataRate", StringValue("200Mbps"));
-    csma0.SetChannelAttribute("Delay", TimeValue(NanoSeconds(6560)));
-    NetDeviceContainer csmadevices0 = csma0.Install(tempNodes0); // Since Docker Container can not be connected with P2P nodes, we installed CSMA on intermediary nodes.
+    // CsmaHelper csma0;
+    // csma0.SetChannelAttribute("DataRate", StringValue("200Mbps"));
+    // csma0.SetChannelAttribute("Delay", TimeValue(NanoSeconds(6560)));
+    // NetDeviceContainer csmadevices0 = csma0.Install(tempNodes0); // Since Docker Container can not be connected with P2P nodes, we installed CSMA on intermediary nodes.
 
-    InternetStackHelper internetTempN;
-    internetTempN.Install(tempNodes0); // Internet stack is installed with intermediary nodes
-    Ipv4AddressHelper address;
-    address.SetBase("192.168.1.0", "255.255.255.248");                   // IP network is set to install IP address to interfaces of nodes
-    Ipv4InterfaceContainer interfacesgen = address.Assign(csmadevices0); // Actual address from network 192.168.0.0/28 is assigned to CSMA interface
+    // InternetStackHelper internetTempN;
+    // internetTempN.Install(tempNodes0); // Internet stack is installed with intermediary nodes
+    // Ipv4AddressHelper address;
+    // address.SetBase("192.168.1.0", "255.255.255.248");                   // IP network is set to install IP address to interfaces of nodes
+    // Ipv4InterfaceContainer interfacesgen = address.Assign(csmadevices0); // Actual address from network 192.168.0.0/28 is assigned to CSMA interface
 
     // Now, tapBridge is defined. The tapBride is used to connect ns-3 node with Docker Container. To read more about how a Docker Container is connected to ns-3 node, you can follow my blog at:
 
@@ -155,7 +176,7 @@ namespace ns3
 
     // Reading topology
     AnnotatedTopologyReader topologyReader("", 25);
-    topologyReader.SetFileName("src/ndnSIM/examples/topologies/topology2.txt");
+    topologyReader.SetFileName("src/ndnSIM/examples/topologies/test.txt");
     topologyReader.Read();
 
     // Install NDN stack on all ndn nodes
@@ -166,9 +187,26 @@ namespace ns3
     for (uint32_t i = 0; i < node_count; ++i)
       nodes.Add(Names::Find<Node>("Node" + std::to_string(i)));
 
-    // ndnHelper.setPolicy("nfd::cs::popularity_priority_queue");
-    ndnHelper.setPolicy("nfd::cs::lru"); 
-    ndnHelper.setCsSize(2);  
+
+    NodeContainer producers = randomNodeSample(producer_proportion);
+    std::cout << "[NodeContainer] Producer nodes: ";
+    printNodeContainer(producers);
+    int producer_count = producers.size();
+
+    // total_objects = initial_object_count * producer_count + producer_count * (simulation_duration * std::stod(produce_rate));
+    initial_object_count = int(total_objects * initial_publish_split / producer_count);
+    produce_rate = (total_objects * (1 - initial_publish_split) / producer_count) / simulation_duration;
+
+    std::cout << "Initial object count: " << initial_object_count << std::endl;
+    std::cout << "Produce rate: " << produce_rate << std::endl;
+
+    ndnHelper.setPolicy(cs_policy); 
+    ndnHelper.setMAGICEnabled(magic_enabled);
+    int cs_size = (int)(total_objects * cache_budget);
+    std::cout << "CS budget " << cache_budget << std::endl;
+    std::cout << "Setting CS size to " << cs_size << std::endl;
+
+    ndnHelper.setCsSize(cs_size);  
     ndnHelper.Install(nodes);
 
 
@@ -193,25 +231,18 @@ namespace ns3
     boost::asio::io_service io_service;
     
     UDPClient::instance().connect("127.0.0.1", 3000, io_service);
-    std::thread thread1([&io_service]() { io_service.run(); });
+    std::thread thread([&io_service]() { io_service.run(); });
     
-
-
-    NodeContainer producers = randomNodeSample(producer_proportion);
-    std::cout << "[NodeContainer] Producer nodes: ";
-    printNodeContainer(producers);
-    int producer_count = producers.size();
-    std::string produce_rate = "0";
-    int initial_object_count = 5;
 
     // Consumers
     ndn::AppHelper consumerHelper("DWebConsumer");
     consumerHelper.SetAttribute("Frequency", StringValue("1"));
     consumerHelper.SetAttribute("MaxSeq", IntegerValue(0));
-    consumerHelper.SetAttribute("ProduceRate", StringValue(produce_rate));
+    consumerHelper.SetAttribute("ProduceRate", StringValue(std::to_string(produce_rate)));
     consumerHelper.SetAttribute("TotalProducerCount", UintegerValue(producer_count));
     consumerHelper.SetAttribute("StartingMetadataCap", UintegerValue(initial_object_count * producer_count));
-    consumerHelper.SetAttribute("Randomize", StringValue("uniform"));
+    // consumerHelper.SetAttribute("Randomize", StringValue("uniform"));
+    // consumerHelper.SetAttribute("RetxTimer",  StringValue("10000ms"));
 
     NodeContainer consumers = randomNodeSample(consumer_proportion);
     std::cout << "[NodeContainer] Consumer nodes: ";
@@ -221,7 +252,7 @@ namespace ns3
     // Producers
     ndn::AppHelper producerHelper("DWebProducer");  
     producerHelper.SetAttribute("PayloadSize", StringValue("256"));
-    producerHelper.SetAttribute("ProduceRate", StringValue(produce_rate));
+    producerHelper.SetAttribute("ProduceRate", StringValue(std::to_string(produce_rate)));
     producerHelper.SetAttribute("TotalProducerCount", UintegerValue(producer_count));
     producerHelper.SetAttribute("InitialObjects", UintegerValue(initial_object_count));
 
@@ -232,13 +263,13 @@ namespace ns3
     }
 
     ndn::GlobalRoutingHelper::CalculateRoutes();
-
-    Simulator::Stop(Seconds(180));
+    ndn::AppDelayTracer::InstallAll("app-delays-trace.txt");
+    Simulator::Stop(Seconds(simulation_duration));
     Simulator::Run();
     Simulator::Destroy();
 
     io_service.stop();
-    thread1.join();
+    thread.join();
   
     return 0;
   }

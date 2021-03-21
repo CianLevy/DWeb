@@ -137,7 +137,8 @@ Forwarder::onIncomingInterest(const FaceEndpoint& ingress, const Interest& inter
                   << " interest=" << interest.getName() << " reaching-producer-region");
     const_cast<Interest&>(interest).setForwardingHint({});
   }
-
+ 
+  m_popCounter->recordRequest(interest);
 
   // PIT insert
   shared_ptr<pit::Entry> pitEntry = m_pit.insert(interest).first;

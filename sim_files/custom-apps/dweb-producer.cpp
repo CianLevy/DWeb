@@ -124,7 +124,8 @@ DWebProducer::StartApplication()
   if (m_name.empty())
     m_name = boost::lexical_cast<std::string>(m_node->GetId());
 
-  Simulator::Schedule(Time(Seconds(2)), &DWebProducer::publishInitialObjects, this);
+  publishInitialObjects();
+  // Simulator::Schedule(Time(Seconds(2)), &DWebProducer::publishInitialObjects, this);
   FibHelper::AddRoute(GetNode(), m_prefix, m_face, 0);
 }
 
