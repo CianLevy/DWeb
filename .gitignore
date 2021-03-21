@@ -48,3 +48,6 @@ output
 /eth/test
 /scripts/geth.log
 /temp_files
+/scripts/logs
+/scripts/images
+summary*

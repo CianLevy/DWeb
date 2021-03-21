@@ -12,6 +12,9 @@ class LogReader:
     def __del__(self):
         self.write_output()
 
+    def write_output(self):
+        pass
+
     def write_line_to_log(self, line):
         self.output_file.write(line + "\n")
 
@@ -78,12 +81,16 @@ class MagicLogReader(LogReader):
         self.write_line_to_log("\n")
         self.write_line_to_log(f"Total outbound hops {total_outbound_hops}")
 
+
 class CacheLogReader(LogReader):
     def __init__(self, file_name):
         super().__init__(file_name, f"cache_log_{file_name}.txt")
         self.res = []
         self.miss_count = 0
         self.hit_count = 0
+        self.file_name = file_name
+        self.insert_count = 0
+        self.evict_count = 0
 
     def read_line(self, line):
         split_line = line.split()
@@ -101,6 +108,12 @@ class CacheLogReader(LogReader):
             self.res.append(match_record)
             self.update_hit_ratio(line, True)
 
+        elif 'insert' in line:
+            self.insert_count += 1
+
+        elif 'Evicting' in line:
+            self.evict_count += 1
+
     def write_output(self):
         self.write_line_to_log(f"####################### Summary ########################")
         total = self.miss_count + self.hit_count
@@ -111,6 +124,8 @@ class CacheLogReader(LogReader):
         self.write_line_to_log(f"Miss ratio: {(self.miss_count / total) * 100}\n")
         self.write_line_to_log(f"Hit count: {self.hit_count}")
         self.write_line_to_log(f"Miss count: {self.miss_count}")
+        self.write_line_to_log(f"Insert count: {self.insert_count}")
+        self.write_line_to_log(f"Evict count: {self.evict_count}")
 
 
         self.write_line_to_log(f"####################### Cache log ########################")
@@ -132,6 +147,58 @@ class CacheLogReader(LogReader):
                 self.hit_count += 1
             else:
                 self.miss_count += 1
+
+    
+    def calculate_per_object_hit_ratio(self):
+        oid_to_record = {}
+
+        for val in self.res:
+            oid = val[2]
+
+            if oid not in oid_to_record:
+                oid_to_record[oid] = [0, 0]
+
+            if val[3] == 'matched':
+                oid_to_record[oid][0] += 1
+            else:
+                oid_to_record[oid][1] += 1
+
+        for key, val in oid_to_record.items():
+            oid_to_record[key] = val[0] / (val[0] + val[1])
+
+        return oid_to_record
+
+    def plot_popularity_vs_cache_hit(self, req_history):
+        oid_to_hit = self.calculate_per_object_hit_ratio()
+        hit_popularity_pairs = []
+
+        for hist in req_history:
+            oid = f"/{hist[5]}/%FE%00"
+
+            if oid in oid_to_hit:
+                # [total requests, hit ratio]
+                hit_popularity_pairs.append([hist[2], oid_to_hit[oid]])
+
+        hit_popularity_pairs = np.array(hit_popularity_pairs)
+
+        fig = plt.figure()
+        plt.grid()
+        # import pdb; pdb.set_trace()
+        popularity_values = hit_popularity_pairs.T[0].astype(float)
+        min_pop = min(popularity_values)
+        max_pop = max(popularity_values)
+        normalised_popularity = (popularity_values - min_pop) / (max_pop - min_pop)
+
+        plt.scatter(normalised_popularity, hit_popularity_pairs.T[1].astype(float))
+        plt.xlabel('Normalised request count')
+        plt.ylabel('Cache hit ratio')
+        plt.title("Hit ratio vs popularity: LRU 1% cache budget")
+
+        # plt.yscale('log')
+        # plt.gca().invert_yaxis()
+        # plt.autoscale(enable=True, axis='both', tight=None)
+        # import pdb; pdb.set_trace()
+        plt.savefig(f"{LOGS_FOLDER}/{self.file_name}/cache_plot.png")
 
 
 class ProducerLogReader(LogReader):
@@ -196,10 +263,13 @@ class ProducerLogReader(LogReader):
             self.write_line_to_log(f"Attempt start time: {record['attempt_record']['time']}")
     
             # if 'publication_record' in record:
-            self.write_line_to_log(f"Callback time: {record['publication_record']['time']}")
-            self.write_line_to_log(f"OID: {record['publication_record']['oid']}")
+            try:
+                self.write_line_to_log(f"Callback time: {record['publication_record']['time']}")
+                self.write_line_to_log(f"OID: {record['publication_record']['oid']}")
         
-            self.write_line_to_log('\n')
+                self.write_line_to_log('\n')
+            except Exception:
+                print(f"No successful publication record for attempt: {record['attempt_record']}")
 
 
 class ConsumerLogReader(LogReader):
@@ -213,37 +283,41 @@ class ConsumerLogReader(LogReader):
             pattern = "Received oid for metadata ([\w.]+) ([\w.]+)"
 
             m = re.search(pattern, line)
-            metadata = int(m.group(1))
-            oid = m.group(2)
-
-            if metadata in self.res:
-                self.res[metadata]['sent_count'] += 1
+            try:
+                metadata = int(m.group(1))
+                oid = m.group(2)
+            except Exception:
+                print(f"Error parsing line: {line}")
             else:
-                self.res[metadata] = {}
-                self.res[metadata]['sent_count'] = 1
-                self.res[metadata]['oid'] = oid
+                if metadata in self.res:
+                    self.res[metadata]['sent_count'] += 1
+                else:
+                    self.res[metadata] = {}
+                    self.res[metadata]['sent_count'] = 1
+                    self.res[metadata]['oid'] = oid
         
         elif 'Data integrity check result for oid' in line:
             pattern = "Data integrity check result for oid: ([\w.]+) res: ([\w.]+) metadata ([\w.]+)"
             m = re.search(pattern, line)
 
-            metadata = int(m.group(3))
-            oid = m.group(1)
+            if m:
+                metadata = int(m.group(3))
+                oid = m.group(1)
 
-            if metadata in self.res:
-                self.increment_or_initialise_count(self.res[metadata], 'response_count')
+                if metadata in self.res:
+                    self.increment_or_initialise_count(self.res[metadata], 'response_count')
 
-                if m.group(2) == 'True':
-                    self.increment_or_initialise_count(self.res[metadata], 'success_count')
+                    if m.group(2) == 'True':
+                        self.increment_or_initialise_count(self.res[metadata], 'success_count')
+                    else:
+                        self.increment_or_initialise_count(self.res[metadata], 'fail_count')
+
                 else:
-                    self.increment_or_initialise_count(self.res[metadata], 'fail_count')
+                    raise Exception(f"Integrity check for unknown metadata: {line}")
 
-            else:
-                raise Exception(f"Integrity check for unknown metadata: {line}")
+                assert(oid == self.res[metadata]['oid'])
 
-            assert(oid == self.res[metadata]['oid'])
-
-    def write_output(self):
+    def write_output_and_save(self):
         table = []
         total_sent = 0
         total_succesful_count = 0
@@ -269,10 +343,10 @@ class ConsumerLogReader(LogReader):
         self.write_line_to_log(f"Total successfully verified requests: {total_succesful_count}")
         self.write_line_to_log(f"Total unverified requests: {total_fail_count}")
 
-        np_table = np.array(table).T
+        self.np_table = np.array(table).T
 
         fig = plt.figure()
-        plt.plot(np_table[1].astype(float))
+        plt.plot(self.np_table[1].astype(float))
         plt.xlabel('Metadata Values')
         plt.ylabel('Number of requests sent')
 
@@ -281,6 +355,7 @@ class ConsumerLogReader(LogReader):
         # plt.autoscale(enable=True, axis='both', tight=None)
         # import pdb; pdb.set_trace()
         plt.savefig(f"{LOGS_FOLDER}/{self.file_name}/request_plot.png")
+        return self.np_table.T
 
 
     def increment_or_initialise_count(self, dictionary, key):
@@ -288,6 +363,47 @@ class ConsumerLogReader(LogReader):
             dictionary[key] += 1
         else:
             dictionary[key] = 1
+
+
+class AppTraceReader(LogReader):
+    def __init__(self, file_name, app_trace_file):
+        super().__init__(file_name, f"hop_count.txt")
+        self.res = {}
+        self.app_trace_file = app_trace_file
+        self.hop_sum = 0
+        self.count = 0
+        self.file_name = file_name
+
+        self.retx = 0
+
+    def read_line(self, line):
+        split_line = line.split()
+
+        try:
+            self.hop_sum += int(split_line[8])
+            self.count += 1
+            self.retx += int(split_line[7])
+        except Exception:
+            pass
+
+    def run_complete_pass(self):
+        trace = open(f"{LOGS_FOLDER}/{self.file_name}/{self.app_trace_file}.txt", 'r')
+
+        for line in trace:
+            if not line:
+                break
+            
+            self.read_line(line)
+
+    def write_output(self):
+        average = -1
+
+        if self.count > 0:
+            average = self.hop_sum / self.count
+
+        self.write_line_to_log(f"Average hop count: {average}")
+        self.write_line_to_log(f"Average retx count: {self.retx / self.count}")
+
 
 
 def main():
@@ -315,6 +431,12 @@ def main():
             pl.read_line(line)
         elif 'DWebConsumer' in line:
             conl.read_line(line)
+
+    req_hist = conl.write_output_and_save()
+    cl.plot_popularity_vs_cache_hit(req_hist)
+
+    atr = AppTraceReader(log_name, "app-delays-trace")
+    atr.run_complete_pass()
 
 
 
