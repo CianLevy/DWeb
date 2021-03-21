@@ -28,6 +28,7 @@
 
 #include "cs-policy.hpp"
 #include "fw/magic_utils.hpp"
+#include <ndn-cxx/lp/tags.hpp>
 
 namespace nfd {
 namespace cs {
@@ -86,7 +87,15 @@ public:
       miss(interest);
       return;
     }
-    hit(interest, match->getData());
+
+    auto data = &match->getData();
+
+    if (m_magicEnabled){
+      nfd::magic::MAGICParams params(interest);
+      params.addToData(const_cast<Data&>(*data));
+    }
+
+    hit(interest,  match->getData());
   }
 
   /** \brief get number of stored packets
@@ -178,6 +187,8 @@ public: // enumeration
 
   shared_ptr<magic::PopularityCounter> m_popCounter;
 
+  void setMagicEnabled(bool enabled);
+
 private:
   std::pair<const_iterator, const_iterator>
   findPrefixRange(const Name& prefix) const;
@@ -202,7 +213,7 @@ private:
 
   bool m_shouldAdmit = true; ///< if false, no Data will be admitted
   bool m_shouldServe = true; ///< if false, all lookups will miss
-
+  bool m_magicEnabled = false;
 
 };
 

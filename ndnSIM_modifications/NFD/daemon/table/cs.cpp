@@ -54,7 +54,7 @@ Cs::Cs(size_t nMaxPackets)
 void
 Cs::insert(const Data& data, bool isUnsolicited)
 {
-  if (!m_popCounter->isMaxPopularity(data) || !m_shouldAdmit || m_policy->getLimit() == 0) {
+  if ((m_magicEnabled && !m_popCounter->isMaxPopularity(data)) || !m_shouldAdmit || m_policy->getLimit() == 0) {
     return;
   }
   NFD_LOG_DEBUG("insert " << data.getName());
@@ -161,7 +161,10 @@ Cs::setPolicyImpl(unique_ptr<Policy> policy)
 {
   NFD_LOG_DEBUG("set-policy " << policy->getName());
   m_policy = std::move(policy);
-  m_beforeEvictConnection = m_policy->beforeEvict.connect([this] (auto it) { m_table.erase(it); });
+  m_beforeEvictConnection = m_policy->beforeEvict.connect([this] (auto it) { 
+    NFD_LOG_INFO("Evicting entry");
+    m_table.erase(it); 
+  });
 
   m_policy->setCs(this);
   BOOST_ASSERT(m_policy->getCs() == this);
@@ -187,6 +190,12 @@ Cs::enableServe(bool shouldServe)
   NFD_LOG_INFO((shouldServe ? "Enabling" : "Disabling") << " Data serving");
 }
 
+
+void 
+Cs::setMagicEnabled(bool enabled){
+  m_magicEnabled = enabled;
+  NFD_LOG_INFO("Setting MAGIC enable bool to: " << m_magicEnabled);
+}
 
 
 } // namespace cs
