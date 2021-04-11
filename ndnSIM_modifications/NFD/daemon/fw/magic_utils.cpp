@@ -24,12 +24,12 @@ uint32_t PopularityCounter::getPopularity(ndn::Name n){
         if (temp->size() > 1){
             double elapsed_time = std::chrono::duration<double, std::milli>(temp->back() - temp->front()).count() / 1000;
 
-            elapsed_time = (elapsed_time < 5) ? 5 : elapsed_time;
+            elapsed_time = (elapsed_time < req_history_time) ? req_history_time : elapsed_time;
 
             uint32_t res = 0;
 
             if (elapsed_time)
-                res = temp->size() / elapsed_time;
+                res = temp->size();// / elapsed_time;
 
             return res;
         }
@@ -47,11 +47,6 @@ void PopularityCounter::recordRequest(const ndn::Interest& interest){
 
     std::string name_str = interest.getName().toUri(ndn::name::UriFormat::DEFAULT);
 
-    std::string::size_type i = name_str.find("/prefix/");
-
-    if (i != std::string::npos)
-        std::cout << "interest is for actual request" << std::endl;
-
 
     std::chrono::nanoseconds currentTime = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch());
 
@@ -66,8 +61,8 @@ void PopularityCounter::recordRequest(const ndn::Interest& interest){
     req_hist->push_back(currentTime);
 
     auto new_end = std::remove_if(req_hist->begin(), req_hist->end(), 
-        [&currentTime](std::chrono::nanoseconds i) {
-            return std::chrono::duration<double, std::milli>(currentTime - i).count() > 5000;
+        [&currentTime, this](std::chrono::nanoseconds i) {
+            return std::chrono::duration<double, std::milli>(currentTime - i).count() > (req_history_time * 1000);
         }
     );
 
@@ -109,8 +104,19 @@ bool PopularityCounter::isMaxPopularity(const ndn::Data& data){
 
     uint32_t min_popularity_required = (popularity_heap) ? popularity_heap->peekPopularity() : 1;
 
-    if (params.getPopularity() > min_popularity_required && params.getPopularity() >= local_popularity)
+    if (popularity_heap && !popularity_heap->isFull()){
+        // while the cache is not full, cache regardless of popularity
+        NFD_LOG_DEBUG("Recommending caching " << data.getName() << " due to non-full cache");
         return true;
+    }
+
+    if (params.getPopularity() > min_popularity_required && params.getPopularity() <= local_popularity){
+        NFD_LOG_DEBUG("Recommending caching " << data.getName() << " due to local popularity " << \
+                      params.getPopularity() << " >= min required " << min_popularity_required << " and local popularity "\
+                      << local_popularity);
+        return true;
+    }
+        
 
     return false;
 }
@@ -163,10 +169,10 @@ void MAGICParams::init(const ndn::Block& parameters, bool interest_packet){
 void MAGICParams::insertHop(std::string id, const ndn::Interest& interest){
     if (hops.size() > 0){
         updateBuffer();
-        std::cout << log_uuid << ": " << " previous hops " << buffer << std::endl;
+        // std::cout << log_uuid << ": " << " previous hops " << buffer << std::endl;
     }
     else{
-        std::cout << log_uuid << ": " << " starting hop " << id << std::endl;
+        // std::cout << log_uuid << ": " << " starting hop " << id << std::endl;
     }
     hops.push_back(id);
 }
@@ -219,6 +225,20 @@ void MAGICParams::addToData(std::shared_ptr<ndn::Data> data)
     metainf->addAppMetaInfo(metainf_block);
     
     data->setMetaInfo(*metainf);
+}
+
+void MAGICParams::addToData(ndn::Data& data)
+{
+    std::shared_ptr<ndn::MetaInfo> metainf = make_shared<ndn::MetaInfo>();
+    std::string pop_field = " " + std::to_string(m_popularity);
+    
+    updateBuffer();
+    Block metainf_block = ndn::encoding::makeStringBlock(150, buffer);
+
+    std::string temp = ndn::encoding::readString(metainf_block);
+    metainf->addAppMetaInfo(metainf_block);
+    
+    data.setMetaInfo(*metainf);
 }
 
 }

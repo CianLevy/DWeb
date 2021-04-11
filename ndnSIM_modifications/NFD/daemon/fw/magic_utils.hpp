@@ -35,6 +35,8 @@ private:
     std::map<std::string, std::vector<std::chrono::nanoseconds>*> requestHistoryMap;
     std::string id = "null";
     std::shared_ptr<MinHeap> popularity_heap = nullptr;
+    int req_history_time = 15;
+
 };
 
 
@@ -52,6 +54,9 @@ public:
 
     void addToInterest(const ndn::Interest& interest);
     void addToData(std::shared_ptr<ndn::Data> data);
+    void addToData(ndn::Data& data);
+
+    void setCacheSize(uint32_t size) { cache_size = size; }
 
     uint32_t getLogUUID() { return log_uuid; };
 
@@ -64,6 +69,7 @@ private:
     uint32_t m_popularity = 0;
     uint32_t log_uuid;
     ns3::Ptr<ns3::UniformRandomVariable> m_rand;
+    uint32_t cache_size;
 };
 
 }
