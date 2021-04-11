@@ -94,6 +94,7 @@ public:
       nfd::magic::MAGICParams params(interest);
       params.addToData(const_cast<Data&>(*data));
     }
+    data->setTag(make_shared<lp::HopCountTag>(0));
 
     hit(interest,  match->getData());
   }

@@ -63,7 +63,9 @@ void UDPClient::handleReceive(const boost::system::error_code& error, std::size_
   if (i != std::string::npos)
     reqID = static_cast<uint32_t>(std::stoul(receiveBuffer.substr(0, i)));
 
+  m.lock();
   callbackResponses[reqID] = results;
+  m.unlock();
 
   socket->async_receive_from(
     boost::asio::buffer(recvBuffer), *recvEndpoint,
