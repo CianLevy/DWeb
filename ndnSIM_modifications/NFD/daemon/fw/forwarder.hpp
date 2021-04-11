@@ -39,6 +39,8 @@
 #include "table/network-region-table.hpp"
 #include "magic_utils.hpp"
 #include "ns3/ptr.h"
+#include <set>
+
 
 namespace nfd {
 
@@ -170,6 +172,7 @@ public: // forwarding entrypoints and tables
   }
 
 public:
+  bool DWebBroadcastEnabled = false;
   /** \brief trigger before PIT entry is satisfied
    *  \sa Strategy::beforeSatisfyInterest
    */
@@ -267,6 +270,9 @@ PROTECTED_WITH_TESTS_ELSE_PRIVATE:
   VIRTUAL_WITH_TESTS void
   insertDeadNonceList(pit::Entry& pitEntry, Face* upstream);
 
+  void
+  dwebObjectBroadcast(const Data& data);
+
   /** \brief call trigger (method) on the effective strategy of pitEntry
    */
 #ifdef WITH_TESTS
@@ -299,6 +305,9 @@ private:
   shared_ptr<magic::PopularityCounter> m_popCounter;
   std::string           m_id = "null";
   ns3::Ptr<ns3::UniformRandomVariable> m_rand;
+  std::set<std::string> broadcasts;
+
+
 
   // allow Strategy (base class) to enter pipelines
   friend class fw::Strategy;

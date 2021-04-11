@@ -233,6 +233,9 @@ public:
   void
   setMAGICEnabled(bool enabled);
 
+  void
+  setDWebObjectBroadcastEnabled(bool enabled);
+
 private:
   void
   doInstall(Ptr<Node> node) const;
@@ -250,6 +253,7 @@ private:
   bool m_isForwarderStatusManagerDisabled;
   bool m_isStrategyChoiceManagerDisabled;
   bool m_isMAGICEnabled;
+  bool m_isBroadcastEnabled;
 
 public:
   void

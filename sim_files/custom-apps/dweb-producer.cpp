@@ -86,10 +86,12 @@ DWebProducer::GetTypeId(void)
                     "The producer's associated id within the count from 0 to total number of producers", 
                     UintegerValue(10),
                     MakeUintegerAccessor(&DWebProducer::starting_objects),
-                    MakeUintegerChecker<uint32_t>());
-      // .AddAttribute("ndnGlobalRoutingHelper", 
-      //               "", 
-      //               MakePtrAccessor(&DWebProducer::ndnGlobalRoutingHelper));
+                    MakeUintegerChecker<uint32_t>())
+      .AddAttribute("EnableObjectBroadcast", 
+                    "Enable DWeb's broadcast based caching behaviour", 
+                    StringValue("disabled"),
+                    MakeStringAccessor(&DWebProducer::objectBroadcast), MakeStringChecker());
+
 
   return tid;
 }
@@ -178,8 +180,12 @@ DWebProducer::OnInterest(shared_ptr<const Interest> interest)
 
   shared_ptr<::ndn::Buffer> buffer = createData(std::to_string(metadata));
   data->setContent(buffer);
+  sendData(data);
+}
 
 
+void
+DWebProducer::sendData(shared_ptr<Data> data){
   Signature signature;
   SignatureInfo signatureInfo(static_cast< ::ndn::tlv::SignatureTypeValue>(255));
 
@@ -200,6 +206,7 @@ DWebProducer::OnInterest(shared_ptr<const Interest> interest)
   m_transmittedDatas(data, this, m_face);
   m_appLink->onReceiveData(*data);
 }
+
 
 void
 DWebProducer::publishDataOnBlockchain(std::string metadata, shared_ptr<::ndn::Buffer> data, uint32_t callback_id){
@@ -259,6 +266,22 @@ DWebProducer::successfulBlockchainPublishCallback(std::vector<std::string> split
 
       m_transmittedInterests(new_interest, this, m_face);
       m_appLink->onReceiveInterest(*new_interest);
+
+
+      // broadcast object itself
+      if (objectBroadcast == "enabled"){
+        std::cout << "starting object broadcast: " << oid << std::endl;
+
+        Name dataName("/broadcast/object/" + oid);
+        auto data = make_shared<Data>();
+
+        data->setName(dataName);
+        data->setFreshnessPeriod(::ndn::time::milliseconds(m_freshness.GetMilliSeconds()));
+
+        shared_ptr<::ndn::Buffer> buffer = createData(split_response.at(3));
+        data->setContent(buffer);
+        sendData(data);
+      }
 
 
       NFD_LOG_DEBUG(m_name << ": Published new object. Metadata: " << split_response.at(3) << " oid: " << *prefix);

@@ -43,8 +43,6 @@ Pit::Pit(NameTree& nameTree)
 std::pair<shared_ptr<Entry>, bool>
 Pit::findOrInsert(const Interest& interest, bool allowInsert)
 {
-  m_popCounter->recordRequest(interest);
-
   // determine which NameTree entry should the PIT entry be attached onto
   const Name& name = interest.getName();
   bool hasDigest = name.size() > 0 && name[-1].isImplicitSha256Digest();

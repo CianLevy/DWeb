@@ -141,6 +141,12 @@ StackHelper::setMAGICEnabled(bool enabled){
 }
 
 void
+StackHelper::setDWebObjectBroadcastEnabled(bool enabled){
+  m_isBroadcastEnabled = enabled;
+}
+
+
+void
 StackHelper::Install(const NodeContainer& c) const
 {
   for (NodeContainer::Iterator i = c.Begin(); i != c.End(); ++i) {
@@ -182,6 +188,7 @@ StackHelper::doInstall(Ptr<Node> node) const
 
   ndn->getConfig().put("tables.cs_max_packets", m_maxCsSize);
   ndn->getConfig().put("tables.magic_enabled", m_isMAGICEnabled);
+  ndn->getConfig().put("tables.dweb_object_broadcast_enabled", m_isBroadcastEnabled);
 
   ndn->setCsReplacementPolicy(m_csPolicyCreationFunc);
 

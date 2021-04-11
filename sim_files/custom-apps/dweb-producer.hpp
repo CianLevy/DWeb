@@ -97,6 +97,8 @@ private:
 
   std::string m_name;
 
+  std::string objectBroadcast = "disabled";
+
   void
   setProduceRate(double rate);
 
@@ -133,6 +135,9 @@ private:
   extractPopularity(shared_ptr<const Interest> interest);
 
   std::string getNextMetadataValue();
+
+  void
+  sendData(shared_ptr<Data> data);
 };
 
 }

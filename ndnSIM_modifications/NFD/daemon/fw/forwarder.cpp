@@ -341,6 +341,36 @@ Forwarder::onInterestFinalize(const shared_ptr<pit::Entry>& pitEntry)
   m_pit.erase(pitEntry.get());
 }
 
+
+void
+Forwarder::dwebObjectBroadcast(const Data& data){
+  shared_ptr<Data> d = make_shared<Data>(data);
+  std::string test = data.getName().at(data.getName().size() - 1).toUri(ndn::name::UriFormat::DEFAULT);
+
+  if (broadcasts.find(test) == broadcasts.end()){
+    broadcasts.insert(test);
+
+    shared_ptr<Name> new_prefix = make_shared<Name>(test + "/%FE%00");
+    d->setName(*new_prefix);
+    m_cs.insert(*d);
+    d->setSignature(data.getSignature());
+    d->wireEncode();
+    
+    m_cs.insert(*d);
+
+    Name broadcast_prefix("broadcast");
+    const fib::Entry& broadcast_entry= m_fib.findLongestPrefixMatch(broadcast_prefix);
+    auto next_hops = broadcast_entry.getNextHops();
+
+    for (auto hop : next_hops){
+      this->onOutgoingData(data, FaceEndpoint(hop.getFace(), 0));
+      //  FaceEndpoint(*nextHopFace, 0)
+      // this->onOutgoingData(data, FaceEndpoint(*pendingDownstream.first, pendingDownstream.second));
+    }
+  }
+
+}
+
 void
 Forwarder::onIncomingData(const FaceEndpoint& ingress, const Data& data)
 {
@@ -361,14 +391,25 @@ Forwarder::onIncomingData(const FaceEndpoint& ingress, const Data& data)
   // PIT match
   pit::DataMatchResult pitMatches = m_pit.findAllDataMatches(data);
 
+  std::string name_str = data.getName().toUri(ndn::name::UriFormat::DEFAULT);
+  std::string broadcast = "/broadcast/object/";
+  std::string::size_type k = name_str.find(broadcast);
+
+  if (k != std::string::npos){
+    dwebObjectBroadcast(data);
+  }
+  
+
   if (pitMatches.size() == 0) {
     // goto Data unsolicited pipeline
     this->onDataUnsolicited(ingress, data);
     return;
   }
 
-  // CS insert
-  m_cs.insert(data);
+  // for the DWeb's broadcast-based cache we only cache for the broadcast
+  if (!DWebBroadcastEnabled)
+    // CS insert
+    m_cs.insert(data);
 
   // when only one PIT entry is matched, trigger strategy: after receive Data
   if (pitMatches.size() == 1) {

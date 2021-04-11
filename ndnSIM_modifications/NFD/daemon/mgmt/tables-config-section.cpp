@@ -95,6 +95,14 @@ TablesConfigSection::processConfig(const ConfigSection& section, bool isDryRun)
     magicEnabled = magicEnabledConfig->get_value<bool>();
   }
 
+  bool broadcastEnabled = false;
+  OptionalConfigSection broadcastEnabledConfig = section.get_child_optional("dweb_object_broadcast_enabled");
+  if (magicEnabledConfig){
+    broadcastEnabled = broadcastEnabledConfig->get_value<bool>();
+    m_forwarder.DWebBroadcastEnabled = broadcastEnabled;
+  }
+
+
   OptionalConfigSection strategyChoiceSection = section.get_child_optional("strategy_choice");
   if (strategyChoiceSection) {
     processStrategyChoiceSection(*strategyChoiceSection, isDryRun);
