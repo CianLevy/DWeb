@@ -5,6 +5,8 @@ from tabulate import tabulate
 import matplotlib.pyplot as plt
 import numpy as np
 
+from scipy.stats import pearsonr
+
 class LogReader:
     def __init__(self, base_log_name, file_name):
         self.output_file = open(f"{LOGS_FOLDER}/{base_log_name}/{file_name}", 'w+')
@@ -168,7 +170,7 @@ class CacheLogReader(LogReader):
 
         return oid_to_record
 
-    def plot_popularity_vs_cache_hit(self, req_history):
+    def get_popularity_vs_cache_hit(self, req_history):
         oid_to_hit = self.calculate_per_object_hit_ratio()
         hit_popularity_pairs = []
 
@@ -179,7 +181,12 @@ class CacheLogReader(LogReader):
                 # [total requests, hit ratio]
                 hit_popularity_pairs.append([hist[2], oid_to_hit[oid]])
 
-        hit_popularity_pairs = np.array(hit_popularity_pairs)
+        self.hit_popularity_pairs = np.array(hit_popularity_pairs)
+
+        return self.hit_popularity_pairs
+
+    def plot_popularity_vs_cache_hit(self, req_history):
+        hit_popularity_pairs = self.get_popularity_vs_cache_hit(req_history)
 
         fig = plt.figure()
         plt.grid()
@@ -315,7 +322,7 @@ class ConsumerLogReader(LogReader):
                 else:
                     raise Exception(f"Integrity check for unknown metadata: {line}")
 
-                assert(oid == self.res[metadata]['oid'])
+                # assert(oid == self.res[metadata]['oid'])
 
     def write_output_and_save(self):
         table = []
@@ -406,8 +413,8 @@ class AppTraceReader(LogReader):
 
 
 
-def main():
-    log_name = sys.argv[1]
+def read_log(log_name):
+
     log = open(f"{LOGS_FOLDER}/{log_name}/{log_name}.txt", 'r')
     
     # LOGS_FOLDER += f"/{log_name}"
@@ -438,9 +445,65 @@ def main():
     atr = AppTraceReader(log_name, "app-delays-trace")
     atr.run_complete_pass()
 
+    return cl
+
+
+def polyfit(x, y, degree=1):
+    results = {}
+
+    coeffs = np.polyfit(x, y, degree)
+    p = np.poly1d(coeffs)
+
+    results['determination'], _ = pearsonr(x, y)
+    results['fit'] = p
+
+    return results
+
+def compare_cache_plots(file_name, dataset_1, dataset_2, label_1, label_2):
+    fig = plt.figure()
+    plt.grid()
+
+    def normalise_popularity(dataset):
+        popularity_values = dataset.T[0].astype(float)
+        min_pop = min(popularity_values)
+        max_pop = max(popularity_values)
+        normalised_popularity = (popularity_values - min_pop) / (max_pop - min_pop)
+
+        return normalised_popularity
+    
+    normalised_popularity_1 = normalise_popularity(dataset_1)
+    normalised_popularity_2 = normalise_popularity(dataset_2)
+
+    plt.scatter(normalised_popularity_1, dataset_1.T[1].astype(float), c='r', label=label_1, marker='x')
+    plt.scatter(normalised_popularity_2, dataset_2.T[1].astype(float), edgecolors='b', label=label_2, marker='^', facecolors='none')
+    plt.xlabel('Popularity (Normalised request count)')
+    plt.ylabel('Cache hit ratio')
+    plt.title("Hit ratio vs popularity: LCE and MAGIC (1% Cache budget)")
+    
+    fit_1 = polyfit(normalised_popularity_1, dataset_1.T[1].astype(float))
+    fit_2 = polyfit(normalised_popularity_2, dataset_2.T[1].astype(float))
+
+    plt.plot(normalised_popularity_1, fit_1['fit'](normalised_popularity_1), c='r', linestyle='--', label=f"{label_1} linear fit ($R^2={fit_1['determination']:.2f}$)")
+    plt.plot(normalised_popularity_2, fit_2['fit'](normalised_popularity_2), c='b', linestyle='--', label=f"{label_2} linear fit ($R^2={fit_2['determination']:.2f}$)")
+    
+    
+    plt.legend()
+    plt.savefig(f"images/comparison.png")
 
 
 LOGS_FOLDER = "logs"
 
 if __name__ == '__main__':
-    main()
+    if len(sys.argv) == 2:
+        log_name = sys.argv[1]
+        read_log(log_name)
+    elif len(sys.argv) == 3:
+        log_1 = sys.argv[1]
+        log_1_cl = read_log(log_1)
+
+        log_2 = sys.argv[2]
+        log_2_cl = read_log(log_2)
+
+        compare_cache_plots(' ', log_1_cl.hit_popularity_pairs, log_2_cl.hit_popularity_pairs, 'MAGIC', 'LCE (LRU eviction)')
+
+

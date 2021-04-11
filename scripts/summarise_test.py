@@ -71,7 +71,7 @@ def to_csv(rows, file_name):
     table = []
 
     for row in rows:
-        pattern = "([a-zA-Z]+)_([0-9_]+)"
+        pattern = "([a-zA-Z_]+)_([0-9_]+)"
         
         m = re.search(pattern, row[0])
 

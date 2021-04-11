@@ -87,7 +87,6 @@ def main():
     node_count = int(sys.argv[1])
     topology_file = sys.argv[2]
 
-    # import pdb; pdb.set_trace()
     points = random_points(node_count)
     connections = connect_points(points)
 
