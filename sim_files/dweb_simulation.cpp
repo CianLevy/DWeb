@@ -74,7 +74,7 @@ std::string repoPath = "/home/cian/Documents/GitHub/DWeb";
 // Simulation parameters
 uint32_t node_count = 100;  // Number of gateway routers
 double simulation_duration = 60;
-std::string topology = "test.txt"; // t3
+std::string topology = "100_topology.txt";
 
 // Producer parameters
 int initial_object_count = 5;
@@ -110,7 +110,7 @@ namespace ns3
       nodes.push_back(i);
 
     for (int i = 0; i < target_count; ++i){
-      uint32_t index = rand() % (nodes.size() - 1); 
+      uint32_t index = rand() % (nodes.size() - 1);
       std::string node_name = "Node" + std::to_string(nodes.at(index));
       result.Add(Names::Find<Node>(node_name));
 
