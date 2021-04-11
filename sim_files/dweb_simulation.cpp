@@ -68,20 +68,32 @@ Modified by: Raman Singh <rasingh@tcd.ie>,<raman.singh@thapar.edu> Post Doctoral
 #include <chrono>
 #include <thread>
 
-uint32_t node_count = 50;  //Number of gateway routers
-double consumer_proportion = 0.8;
-double producer_proportion = 0.2;
-double simulation_duration = 60;
+
 std::string repoPath = "/home/cian/Documents/GitHub/DWeb";
-// std::string produce_rate = "0.1";
-double produce_rate;
+
+// Simulation parameters
+uint32_t node_count = 100;  // Number of gateway routers
+double simulation_duration = 60;
+std::string topology = "test.txt"; // t3
+
+// Producer parameters
 int initial_object_count = 5;
-std::string cs_policy =   "nfd::cs::lru"; //"nfd::cs::popularity_priority_queue"; //
-double cache_budget = 0.05;
-bool magic_enabled = false;
-double initial_publish_split = 0.5;
+double producer_proportion = 0.2;
+double initial_publish_split = 0.8;
 int total_objects = 200;
+double produce_rate;
+bool object_broadcast_enabled = false;
+
+// Consumer parameters
+double consumer_proportion = 0.8;
 int request_rate = 2;
+double request_alpha = 0.7;
+
+// Cache parameters
+std::string cs_policy = "nfd::cs::popularity_priority_queue";
+double cache_budget = 0.01;
+bool magic_enabled = true;
+
 
 namespace ns3
 {
@@ -98,7 +110,7 @@ namespace ns3
       nodes.push_back(i);
 
     for (int i = 0; i < target_count; ++i){
-      uint32_t index = rand() % (nodes.size() - 1); //distribution->GetInteger(0, nodes.size() - 1);
+      uint32_t index = rand() % (nodes.size() - 1); 
       std::string node_name = "Node" + std::to_string(nodes.at(index));
       result.Add(Names::Find<Node>(node_name));
 
@@ -119,7 +131,6 @@ namespace ns3
 
     // These two instructions will make sure that ns-3 simulation work in real time and accept data from Docker Containers.
     GlobalValue::Bind("SimulatorImplementationType", StringValue("ns3::RealtimeSimulatorImpl"));
-    // GlobalValue::Bind("ChecksumEnabled", BooleanValue(true));
 
     CommandLine cmd;
     cmd.Parse(argc, argv);
@@ -127,57 +138,26 @@ namespace ns3
     for (int i = 0; i < argc; ++i)
       std::cout << "Arg" << i << ": " << argv[i] << std::endl;
 
-    if (argc > 1)
+    if (argc >= 4){
       cs_policy = argv[1];
-    if (argc > 2)
       magic_enabled = boost::lexical_cast<bool>(argv[2]);
-    if (argc > 3)
       cache_budget = std::stod(argv[3]);
+    }
+    if (argc == 5){
+      request_alpha = std::stod(argv[4]);
+    }
+
+
+    if (cs_policy == "dweb_broadcast"){
+      cs_policy = "nfd::cs::popularity_priority_queue";
+      object_broadcast_enabled = true;
+    }
 
     srand(0);
 
-    // These instructions set the default value of P2P network parameters like bandwidth, latency and Queue size.
-    // Config::SetDefault("ns3::PointToPointNetDevice::DataRate", StringValue("200Mbps"));
-    // Config::SetDefault("ns3::PointToPointChannel::Delay", StringValue("0ms"));
-    // Config::SetDefault("ns3::QueueBase::MaxSize", StringValue("200p"));
-
-    // //Enable packet metadata, this will be used for tracing purpose.
-    // Packet::EnablePrinting();
-
-    // Here we are creating (1) number of nodes (named as ghost_nodes) for creation of ns-3 network.
-
-    // These Temp nodes are created many places. Actually we can not connect ns-3 node with Docker COntainer directly as it has p2p network.
-    // So we created these two intermediary for connecting Docker Container with ns-3 nodes.
-    // // (* ns-3 node) ----- Temp node 0----Temp node 1------Docker Container
-    // NodeContainer tempNodes0;
-    // tempNodes0.Create(2);
-
-    // CsmaHelper csma0;
-    // csma0.SetChannelAttribute("DataRate", StringValue("200Mbps"));
-    // csma0.SetChannelAttribute("Delay", TimeValue(NanoSeconds(6560)));
-    // NetDeviceContainer csmadevices0 = csma0.Install(tempNodes0); // Since Docker Container can not be connected with P2P nodes, we installed CSMA on intermediary nodes.
-
-    // InternetStackHelper internetTempN;
-    // internetTempN.Install(tempNodes0); // Internet stack is installed with intermediary nodes
-    // Ipv4AddressHelper address;
-    // address.SetBase("192.168.1.0", "255.255.255.248");                   // IP network is set to install IP address to interfaces of nodes
-    // Ipv4InterfaceContainer interfacesgen = address.Assign(csmadevices0); // Actual address from network 192.168.0.0/28 is assigned to CSMA interface
-
-    // Now, tapBridge is defined. The tapBride is used to connect ns-3 node with Docker Container. To read more about how a Docker Container is connected to ns-3 node, you can follow my blog at:
-
-    // https://sites.google.com/thapar.edu/ramansinghtechpages/home
-
-    //In this blog I have explained procedures needs to follow for Docker COntainer to ns-3 interaction
-
-    // TapBridgeHelper tapBridge(interfacesgen.GetAddress(0));
-    // tapBridge.SetAttribute("Mode", StringValue("UseBridge"));
-    // tapBridge.SetAttribute("DeviceName", StringValue("tap_gate"));
-    // tapBridge.Install(tempNodes0.Get(0), csmadevices0.Get(0));
-    // std::cout << "NS-3 node IP address:" << interfacesgen.GetAddress(1) << "\n";
-
     // Reading topology
     AnnotatedTopologyReader topologyReader("", 25);
-    topologyReader.SetFileName("src/ndnSIM/examples/topologies/test.txt");
+    topologyReader.SetFileName("src/ndnSIM/examples/topologies/" + topology);
     topologyReader.Read();
 
     // Install NDN stack on all ndn nodes
@@ -194,15 +174,19 @@ namespace ns3
     printNodeContainer(producers);
     int producer_count = producers.size();
 
-    // total_objects = initial_object_count * producer_count + producer_count * (simulation_duration * std::stod(produce_rate));
     initial_object_count = int(total_objects * initial_publish_split / producer_count);
     produce_rate = (total_objects * (1 - initial_publish_split) / producer_count) / simulation_duration;
 
     std::cout << "Initial object count: " << initial_object_count << std::endl;
     std::cout << "Produce rate: " << produce_rate << std::endl;
+    std::cout << "Alpha: " << request_alpha << std::endl;
 
     ndnHelper.setPolicy(cs_policy); 
     ndnHelper.setMAGICEnabled(magic_enabled);
+
+    if (object_broadcast_enabled)
+      ndnHelper.setDWebObjectBroadcastEnabled(true);
+  
     int cs_size = (int)(total_objects * cache_budget);
     std::cout << "CS budget " << cache_budget << std::endl;
     std::cout << "Setting CS size to " << cs_size << std::endl;
@@ -211,22 +195,16 @@ namespace ns3
     ndnHelper.Install(nodes);
 
 
-    // Set the broadcast strategy under the prefix "broadcast". This is used
-    // to advertise new OIDs
     std::string broadcast_prefix = "/broadcast";
-    ndn::StrategyChoiceHelper::Install(nodes, "/", "/localhost/nfd/strategy/best-route");
+    ndn::StrategyChoiceHelper::Install(nodes, "/", "/localhost/nfd/strategy/multicast");
     ndn::StrategyChoiceHelper::Install(nodes, broadcast_prefix, "/localhost/nfd/strategy/multicast");
-    // Use best-route otherwise
-    // Note this will only apply to the initial FIB state as calculated after calling
-    // ndn::GlobalRoutingHelper::CalculateRoutes(). During the simulation the routing
-    // is therefore based on the FIB entries from the broadcast strategy.
-    
-    
+
 
     // Installing global routing interface on all ndn nodes
     ndn::GlobalRoutingHelper ndnGlobalRoutingHelper;
     ndnGlobalRoutingHelper.Install(nodes);
     ndnGlobalRoutingHelper.AddOrigins(broadcast_prefix, nodes);
+    ndnGlobalRoutingHelper.AddOrigins("/", nodes);
 
 
     boost::asio::io_service io_service;
@@ -242,8 +220,7 @@ namespace ns3
     consumerHelper.SetAttribute("ProduceRate", StringValue(std::to_string(produce_rate)));
     consumerHelper.SetAttribute("TotalProducerCount", UintegerValue(producer_count));
     consumerHelper.SetAttribute("StartingMetadataCap", UintegerValue(initial_object_count * producer_count));
-    // consumerHelper.SetAttribute("Randomize", StringValue("uniform"));
-    // consumerHelper.SetAttribute("RetxTimer",  StringValue("10000ms"));
+    consumerHelper.SetAttribute("s", StringValue(std::to_string(request_alpha)));
 
     NodeContainer consumers = randomNodeSample(consumer_proportion);
     std::cout << "[NodeContainer] Consumer nodes: ";
@@ -256,7 +233,8 @@ namespace ns3
     producerHelper.SetAttribute("ProduceRate", StringValue(std::to_string(produce_rate)));
     producerHelper.SetAttribute("TotalProducerCount", UintegerValue(producer_count));
     producerHelper.SetAttribute("InitialObjects", UintegerValue(initial_object_count));
-
+    if (object_broadcast_enabled)
+      producerHelper.SetAttribute("EnableObjectBroadcast", StringValue("enabled"));
 
     for (int i = 0; i < producer_count; ++i){
       producerHelper.SetAttribute("ProducerNumber", UintegerValue(i));

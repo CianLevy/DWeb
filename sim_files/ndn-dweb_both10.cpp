@@ -79,8 +79,23 @@ namespace ns3
   NS_LOG_COMPONENT_DEFINE("DWeb");
  
   NodeContainer randomNodeSample(double proportion){
-      int target_count = (int)(node_count * proportion);
-      NormalRandomVariable distribution;
+        int target_count = (int)(node_count * proportion);
+    Ptr<UniformRandomVariable> distribution = CreateObject<UniformRandomVariable>();
+    std::vector<int> nodes;
+
+    NodeContainer result;
+
+    for (int i = 0; i < node_count; ++i)
+      nodes.push_back(i);
+
+    for (int i = 0; i < target_count; ++i){
+      uint32_t index = rand() % (nodes.size() - 1); //distribution->GetInteger(0, nodes.size() - 1);
+      std::string node_name = "Node" + std::to_string(nodes.at(index));
+      result.Add(Names::Find<Node>(node_name));
+
+      nodes.erase(nodes.begin() + index);
+    }
+    return result;
 
   }
 
