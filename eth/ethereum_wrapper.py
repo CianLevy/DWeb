@@ -25,8 +25,11 @@ class SearchEngine:
 
     def index_object(self, metadata, blockchain_index):
         if metadata in self.indexed_objects:
-            logger.info(f'Attempted to index pre-existing value: {metadata}')
-            return False
+            logger.error(f'Attempted to index pre-existing value: {metadata}')
+            # return False
+            self.indexed_objects[metadata] = blockchain_index
+            logger.info(f'Indexed new value {metadata}')
+            return True
         else:
             self.indexed_objects[metadata] = blockchain_index
             logger.info(f'Indexed new value {metadata}')
@@ -111,8 +114,7 @@ class EthereumWrapper:
             return res[0]
     
     def verify_object(self, oid, metadata, data):
-        # test_oid = calculate_oid(data, metadata)
-        # test: test_oid == oid
-        # import pdb; pdb.set_trace()
-        return metadata in data
+        test_oid = self.calculate_oid(data, metadata)
+
+        return test_oid == oid
 

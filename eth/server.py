@@ -43,7 +43,7 @@ class RequestHandler:
         split_req = req.split('/')
 
         if 'set' in req and len(split_req) == 5:
-            res = self.ethereum_wrapper.set_object_data(split_req[4], split_req[3], split_req[2])
+            res = self.ethereum_wrapper.set_object_data(split_req[4].strip('\n'), split_req[3], split_req[2])
             # 'set' request structure is: set/req_id/producer_id/metadata/data
             logger.debug(f"Processed set for {req}")
             return f"{split_req[1]}/oid/{res}/{split_req[3]}"
