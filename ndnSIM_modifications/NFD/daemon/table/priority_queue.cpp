@@ -1,4 +1,5 @@
 #include "priority_queue.hpp"
+#include "NFD/daemon/fw/magic_utils.hpp"
 
 void MinHeap::insert(std::shared_ptr<heapEntry> entry){
     int current_index = heap.size();
@@ -15,12 +16,12 @@ void MinHeap::insert(std::shared_ptr<heapEntry> entry){
 }
 
 void MinHeap::update(std::shared_ptr<heapEntry> entry, uint32_t new_popularity){
-    if (new_popularity > entry->popularity){
+    if (new_popularity >= entry->popularity){
         entry->popularity = new_popularity;
 
         std::shared_ptr<heapEntry> curr = min(getLeftChild(entry), getRightChild(entry));
 
-        while (curr && curr->popularity < entry->popularity){
+        while (curr && curr->popularity <= entry->popularity){
             swap(curr, entry);
             curr = min(getLeftChild(entry), getRightChild(entry));
         }
@@ -125,7 +126,7 @@ void MinHeap::print(){
         std::cout << entry->popularity << " ";
 
         if (heap.at(0)->popularity > entry->popularity)
-            std::cout << "misorder detected" << std::endl;
+            std::cout << "Popularity heap misorder detected" << std::endl;
     }
     std::cout << std::endl;
 }
@@ -135,4 +136,12 @@ uint32_t MinHeap::peekPopularity(){
         return heap.at(0)->popularity;
     else
         return 0;
+}
+
+uint32_t MinHeap::getCurrentSize(){
+    return (uint32_t)heap.size();
+}
+
+bool MinHeap::isFull(){
+    return heap.size() >= max_size;
 }

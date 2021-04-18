@@ -83,7 +83,7 @@ private:
 private:
   std::map<std::string, std::shared_ptr<heapEntry>> m_entryInfoMap;
   shared_ptr<MinHeap> m_heap;
-  shared_ptr<magic::PopularityCounter> m_popCounter;
+  shared_ptr<magic::PopularityTracker> m_popCounter;
   bool first_use = true;
 };
 

@@ -91,7 +91,7 @@ public:
     auto data = &match->getData();
 
     if (m_magicEnabled){
-      nfd::magic::MAGICParams params(interest);
+      nfd::magic::PacketWrapper params(interest);
       params.addToData(const_cast<Data&>(*data));
     }
     data->setTag(make_shared<lp::HopCountTag>(0));
@@ -169,7 +169,7 @@ public: // configuration
   enableServe(bool shouldServe);
 
   void
-  addPopCounter(shared_ptr<magic::PopularityCounter> popCounter) { m_popCounter = popCounter; }
+  addPopularityTracker(shared_ptr<magic::PopularityTracker> popCounter) { m_popCounter = popCounter; }
 
 public: // enumeration
   using const_iterator = Table::const_iterator;
@@ -186,7 +186,7 @@ public: // enumeration
     return m_table.end();
   }
 
-  shared_ptr<magic::PopularityCounter> m_popCounter;
+  shared_ptr<magic::PopularityTracker> m_popCounter;
 
   void setMagicEnabled(bool enabled);
 

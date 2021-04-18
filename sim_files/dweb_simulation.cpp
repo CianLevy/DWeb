@@ -63,7 +63,7 @@ Modified by: Raman Singh <rasingh@tcd.ie>,<raman.singh@thapar.edu> Post Doctoral
 
 #include <stdlib.h>  
 #include "ns3/ptr.h"
-#include "ndn-dweb_both11/dweb-producer.hpp"
+#include "dweb_simulation/dweb-producer.hpp"
 
 #include <chrono>
 #include <thread>
@@ -90,7 +90,7 @@ int request_rate = 2;
 double request_alpha = 0.7;
 
 // Cache parameters
-std::string cs_policy = "nfd::cs::popularity_priority_queue";
+std::string cs_policy = "nfd::cs::popularity_priority_queue"; //"dweb_broadcast"; //"nfd::cs::lru"; //
 double cache_budget = 0.01;
 bool magic_enabled = true;
 
@@ -110,7 +110,7 @@ namespace ns3
       nodes.push_back(i);
 
     for (int i = 0; i < target_count; ++i){
-      uint32_t index = rand() % (nodes.size() - 1);
+      uint32_t index = rand() % (nodes.size() - 1); //distribution->GetInteger(0, nodes.size() - 1);
       std::string node_name = "Node" + std::to_string(nodes.at(index));
       result.Add(Names::Find<Node>(node_name));
 
@@ -131,6 +131,7 @@ namespace ns3
 
     // These two instructions will make sure that ns-3 simulation work in real time and accept data from Docker Containers.
     GlobalValue::Bind("SimulatorImplementationType", StringValue("ns3::RealtimeSimulatorImpl"));
+    // GlobalValue::Bind("ChecksumEnabled", BooleanValue(true));
 
     CommandLine cmd;
     cmd.Parse(argc, argv);
@@ -174,6 +175,7 @@ namespace ns3
     printNodeContainer(producers);
     int producer_count = producers.size();
 
+    // total_objects = initial_object_count * producer_count + producer_count * (simulation_duration * std::stod(produce_rate));
     initial_object_count = int(total_objects * initial_publish_split / producer_count);
     produce_rate = (total_objects * (1 - initial_publish_split) / producer_count) / simulation_duration;
 
@@ -196,15 +198,16 @@ namespace ns3
 
 
     std::string broadcast_prefix = "/broadcast";
-    ndn::StrategyChoiceHelper::Install(nodes, "/", "/localhost/nfd/strategy/multicast");
+    // ndn::StrategyChoiceHelper::Install(nodes, "/", "/localhost/nfd/strategy/multicast"); //"/localhost/nfd/strategy/best-route");// 
     ndn::StrategyChoiceHelper::Install(nodes, broadcast_prefix, "/localhost/nfd/strategy/multicast");
 
+    
 
     // Installing global routing interface on all ndn nodes
     ndn::GlobalRoutingHelper ndnGlobalRoutingHelper;
     ndnGlobalRoutingHelper.Install(nodes);
     ndnGlobalRoutingHelper.AddOrigins(broadcast_prefix, nodes);
-    ndnGlobalRoutingHelper.AddOrigins("/", nodes);
+    // ndnGlobalRoutingHelper.AddOrigins("/", nodes);
 
 
     boost::asio::io_service io_service;

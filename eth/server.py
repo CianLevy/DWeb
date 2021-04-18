@@ -46,14 +46,15 @@ class RequestHandler:
             res = self.ethereum_wrapper.set_object_data(split_req[4].strip('\n'), split_req[3], split_req[2])
             # 'set' request structure is: set/req_id/producer_id/metadata/data
             logger.debug(f"Processed set for {req}")
+    
             return f"{split_req[1]}/oid/{res}/{split_req[3]}"
 
         elif 'get' in req and len(split_req) == 3:
             # 'get' request structure is: get/req_id/metadata
             res = self.ethereum_wrapper.get_object_data(split_req[2])
             logger.debug(f"Processed get for {req} returning {res}")
+
             return f"{split_req[1]}/oid/{res}/{split_req[2]}"
-            # split_req[1] + "/oid/" + res "/" + (split_req[2]
 
         elif 'verify' in req and len(split_req) == 5:
             # 'verify' request structure is: verify/req_id/oid/metadata/data
@@ -62,7 +63,6 @@ class RequestHandler:
             if not res:
                 logger.info(f"Metadata {split_req[3]} data {split_req[4][:10]}")
 
-            # return req_id/oid/res/oid/metadata
             return f"{split_req[1]}/oid/{res}/{split_req[2]}/{split_req[3]}"
         else:
             logger.error(f'Received unknown request {req}')
@@ -76,7 +76,7 @@ class UDPServer:
         self.socket = sock = socket.socket(socket.AF_INET,
                                            socket.SOCK_DGRAM)
         self.eth_wrapper = EthereumWrapper('contracts/publishobject.sol',
-                                           'http://127.0.0.1:8545', True)
+                                           'http://127.0.0.1:8545', False)
         self.req_handler = RequestHandler(self.eth_wrapper)
         
         self.loop = asyncio.get_event_loop()
@@ -111,7 +111,7 @@ class UDPServer:
 
 
     def send(self, message, addr):
-        addr2 = (addr[0], 3002)
+        addr2 = (addr[0], 3001)
         self.socket.sendto(message.encode(), addr2)
 
 

@@ -57,11 +57,10 @@ Forwarder::Forwarder(FaceTable& faceTable)
   , m_measurements(m_nameTree)
   , m_strategyChoice(*this)
   , m_csFace(face::makeNullFace(FaceUri("contentstore://")))
-  , m_popCounter(make_shared<magic::PopularityCounter>())
+  , m_popCounter(make_shared<magic::PopularityTracker>())
   , m_rand(ns3::CreateObject<ns3::UniformRandomVariable>())
 {
-  m_pit.addPopCounter(m_popCounter);
-  m_cs.addPopCounter(m_popCounter);
+  m_cs.addPopularityTracker(m_popCounter);
 
   m_faceTable.addReserved(m_csFace, face::FACEID_CONTENT_STORE);
 

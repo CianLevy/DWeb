@@ -54,7 +54,7 @@ Cs::Cs(size_t nMaxPackets)
 void
 Cs::insert(const Data& data, bool isUnsolicited)
 {
-  if ((m_magicEnabled && !m_popCounter->isMaxPopularity(data)) || !m_shouldAdmit || m_policy->getLimit() == 0) {
+  if ((m_magicEnabled && !m_popCounter->localPopularityIsMax(data)) || !m_shouldAdmit || m_policy->getLimit() == 0) {
     return;
   }
   NFD_LOG_DEBUG("insert " << data.getName());
@@ -80,9 +80,6 @@ Cs::insert(const Data& data, bool isUnsolicited)
     if (entry.isUnsolicited() && !isUnsolicited) {
       entry.clearUnsolicited();
     }
-    // TO DO: fix
-    // this refreshes the position in the LRU queue for a repeat occurence of
-    // cached data. Skipping this due to MAGIC breaks the algorithm
     m_policy->afterRefresh(it);
   }
   else {

@@ -55,7 +55,7 @@ class MagicLogReader(LogReader):
                 
                 if 'req_path' not in self.res[nonce]:
                     self.res[nonce]['req_path'] = []
-                # import pdb; pdb.set_trace()
+
                 self.res[nonce]['req_path'].append((node, line[8], line[10]))
         except Exception:
             import pdb; pdb.set_trace()
@@ -138,11 +138,9 @@ class CacheLogReader(LogReader):
     def update_hit_ratio(self, line, hit):
         pattern = "/([\w.]+)/%FE%"
         
-
         m = re.search(pattern, line)
         oid_length = 128 
-        # if m:
-        #     import pdb; pdb.set_trace()
+
 
         if m and len(m.group(1)) == oid_length:
             if hit:
@@ -190,7 +188,7 @@ class CacheLogReader(LogReader):
 
         fig = plt.figure()
         plt.grid()
-        # import pdb; pdb.set_trace()
+
         popularity_values = hit_popularity_pairs.T[0].astype(float)
         min_pop = min(popularity_values)
         max_pop = max(popularity_values)
@@ -201,10 +199,6 @@ class CacheLogReader(LogReader):
         plt.ylabel('Cache hit ratio')
         plt.title("Hit ratio vs popularity: LRU 1% cache budget")
 
-        # plt.yscale('log')
-        # plt.gca().invert_yaxis()
-        # plt.autoscale(enable=True, axis='both', tight=None)
-        # import pdb; pdb.set_trace()
         plt.savefig(f"{LOGS_FOLDER}/{self.file_name}/cache_plot.png")
 
 
@@ -230,7 +224,6 @@ class ProducerLogReader(LogReader):
                     }
                 }
             else:
-                import pdb; pdb.set_trace()
                 raise Exception("Found duplicate metadata publication")
             
         elif 'Published new object. Metadata' in line:
@@ -357,10 +350,6 @@ class ConsumerLogReader(LogReader):
         plt.xlabel('Metadata Values')
         plt.ylabel('Number of requests sent')
 
-        # plt.yscale('log')
-        # plt.gca().invert_yaxis()
-        # plt.autoscale(enable=True, axis='both', tight=None)
-        # import pdb; pdb.set_trace()
         plt.savefig(f"{LOGS_FOLDER}/{self.file_name}/request_plot.png")
         return self.np_table.T
 

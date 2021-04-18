@@ -57,6 +57,9 @@ public:
   FinalizeSend(std::vector<std::string> split_response);
 
   void
+  SendInterestOnNetwork();
+
+  void
   onDataCallback(std::vector<std::string> split_response);
 
   uint32_t GetRandomObjectID();

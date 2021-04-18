@@ -62,7 +62,6 @@ PopularityPriorityPolicy::doBeforeErase(EntryRef i)
   std::string name = n.toUri(ndn::name::UriFormat::DEFAULT);
   shared_ptr<heapEntry> entry = m_entryInfoMap[name];
   m_heap->remove(entry);
-  // m_queue.get<1>().erase(i);
 }
 
 void
@@ -75,16 +74,12 @@ void
 PopularityPriorityPolicy::evictEntries()
 {
   BOOST_ASSERT(this->getCs() != nullptr);
+
   while (this->getCs()->size() > this->getLimit()) {
-    // BOOST_ASSERT(!m_queue.empty());
-    m_heap->print();
     shared_ptr<heapEntry> entry = m_heap->pop();
-
-    if (entry->popularity > 0){
-      std::cout << "evicted";
-    }
-
-    this->emitSignal(beforeEvict, entry->entry);
+  
+    if (entry)
+      this->emitSignal(beforeEvict, entry->entry);
   }
 }
 
@@ -95,7 +90,9 @@ PopularityPriorityPolicy::insertToQueue(EntryRef i, bool isNewEntry)
     Cs* c = getCs();
     m_popCounter = c->m_popCounter;
     first_use = false;
+    m_heap->m_popCounter = m_popCounter;
 
+    m_heap->setMaxSize(c->getLimit());
     m_popCounter->setPopularityHeap(m_heap);
   }
 
@@ -105,17 +102,16 @@ PopularityPriorityPolicy::insertToQueue(EntryRef i, bool isNewEntry)
   if (isNewEntry){
     shared_ptr<heapEntry> new_entry = make_shared<heapEntry>();
     new_entry->entry = i;
- 
-    new_entry->popularity = m_popCounter->getPopularity(n);
-    m_heap->insert(new_entry);
 
-    
+ 
+    new_entry->popularity = m_popCounter->calculateLocalPopularity(n);
+    m_heap->insert(new_entry);
 
     m_entryInfoMap[name] = new_entry;
   }
   else{
     shared_ptr<heapEntry> entry = m_entryInfoMap[name];
-    uint32_t popularity = m_popCounter->getPopularity(n);
+    uint32_t popularity = m_popCounter->calculateLocalPopularity(n);
 
     m_heap->update(entry, popularity);
   }

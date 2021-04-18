@@ -302,7 +302,7 @@ private:
   DeadNonceList      m_deadNonceList;
   NetworkRegionTable m_networkRegionTable;
   shared_ptr<Face>   m_csFace;
-  shared_ptr<magic::PopularityCounter> m_popCounter;
+  shared_ptr<magic::PopularityTracker> m_popCounter;
   std::string           m_id = "null";
   ns3::Ptr<ns3::UniformRandomVariable> m_rand;
   std::set<std::string> broadcasts;

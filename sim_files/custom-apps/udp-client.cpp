@@ -31,9 +31,10 @@ UDPClient::~UDPClient(){
 }
 
 void UDPClient::connect(std::string server_addr, unsigned short port, boost::asio::io_service& io_service){
-  unsigned short recvPort = 3002;
+  unsigned short recvPort = 3001;
 
   socket = std::make_shared<udp::socket>(io_service, udp::endpoint(udp::v4(), recvPort));
+  socket->set_option(boost::asio::ip::tcp::acceptor::reuse_address(true));
   boost::system::error_code ec;
 
   asio::ip::address ip_address = asio::ip::address::from_string(server_addr, ec);
@@ -45,8 +46,8 @@ void UDPClient::connect(std::string server_addr, unsigned short port, boost::asi
   socket->async_receive_from(
     boost::asio::buffer(recvBuffer), *recvEndpoint,
     boost::bind(&UDPClient::handleReceive, this,
-      boost::asio::placeholders::error,
-      boost::asio::placeholders::bytes_transferred));
+    boost::asio::placeholders::error,
+    boost::asio::placeholders::bytes_transferred));
 }
 
 void UDPClient::handleReceive(const boost::system::error_code& error, std::size_t bytes_transferred) {

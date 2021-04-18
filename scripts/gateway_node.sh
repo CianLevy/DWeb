@@ -25,7 +25,7 @@ fi
 BOOTNODE_URL=${BOOTNODE_URL:-$(./getbootnodeurl.sh)}
 echo "Running new container $contname..."
 
-docker run -p 127.0.0.1:3000:3000/udp -p 127.0.0.1:3001:3001/udp -itd --name ${contname} --network bridge --publish-all=true  -v $DATA_ROOT:/root/.ethereum -v $DATA_HASH:/root/.ethash -v $(pwd)/genesis.json:/opt/genesis.json $IMGNAME 
+docker run -p 127.0.0.1:3000:3000/udp -itd --name ${contname} --network bridge --publish-all=true  -v $DATA_ROOT:/root/.ethereum -v $DATA_HASH:/root/.ethash -v $(pwd)/genesis.json:/opt/genesis.json $IMGNAME 
 
 docker exec -it ${contname} apk add gcc libc-dev python3-dev python3 py3-pip busybox-extras 
 docker exec -it ${contname} pip3 install web3

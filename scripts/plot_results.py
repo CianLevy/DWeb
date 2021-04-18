@@ -84,23 +84,20 @@ def main():
         'dweb_broadcast': u'#d62728'
     }
 
-    ax = create_new_figure('Average number of cache operations vs Cache budget')
+    ax = create_new_figure(f'Average number of cache operations vs Cache budget ({node_count} nodes)')
     plot_all_strategies(datasets, labels, 'total_operations', 'Cache operations (per node)', ax, False)
     plt.savefig(f"{FIGS_DIR}/{sub_folder}operations_plot.png")
 
-    ax = create_new_figure('Cache hit ratio vs Cache budget')
+    ax = create_new_figure(f'Cache hit ratio vs Cache budget ({node_count} nodes)')
     plot_all_strategies(datasets, labels, 'hit_ratio', 'Hit Ratio', ax, False)
     plt.savefig(f"{FIGS_DIR}/{sub_folder}hit_ratio_plot.png")
 
 
-    ax = create_new_figure('Average hop count vs Cache budget')
+    ax = create_new_figure(f'Average hop count vs Cache budget ({node_count} nodes)')
     plot_all_strategies(datasets, labels, 'hop_count', 'Hop Count', ax, False)
     plt.savefig(f"{FIGS_DIR}/{sub_folder}hop_count_plot.png")
 
-
-    # hit_ratio_diff = get_relative_diff_dataset(datasets, 'hit_ratio', 'magic', 'lru')
-    ax = create_new_figure('Relative performance: MAGIC vs other strategies')
-    # plot_error_bar(hit_ratio_diff, ax, y_label='% increase in hit ratio', label=f"Relative increase MAGIC vs {labels['lru']}", rows=False)
+    ax = create_new_figure(f'Relative performance: MAGIC vs other strategies ({node_count} nodes)')
 
     optional_strategies = ['lru', 'popularity', 'dweb_broadcast']
 
@@ -110,14 +107,13 @@ def main():
             plot_error_bar(hit_ratio_diff, ax, y_label='% increase in hit ratio', 
                            label=f'Relative increase MAGIC vs {labels[strategy]}', rows=False,
                            colour=colours[strategy])
-            import pdb; pdb.set_trace()
 
     plt.savefig(f"{FIGS_DIR}/{sub_folder}difference_plot.png")
 
 
     ax = create_new_figure('Hit ratio vs Hop count: MAGIC vs LRU')
     new_dataset = get_hit_ratio_vs_hop_count(datasets, labels.keys())
-    # import pdb; pdb.set_trace()
+
     average_hop_diff = 1 - sum(new_dataset['magic'][1]) / sum(new_dataset['lru'][1])
 
     print(f"Average MAGIC hop count reduction {average_hop_diff:.4f}")
@@ -194,7 +190,6 @@ def get_relative_diff_dataset(datasets, dataset_name, strategy_1, strategy_2):
     dataset = np.array(dataset).T
 
     if dataset[0][1] > 1000:
-        import pdb; pdb.set_trace()
         dataset = dataset[1:]
 
     return dataset.T
