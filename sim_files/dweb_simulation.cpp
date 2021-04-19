@@ -69,8 +69,6 @@ Modified by: Raman Singh <rasingh@tcd.ie>,<raman.singh@thapar.edu> Post Doctoral
 #include <thread>
 
 
-std::string repoPath = "/home/cian/Documents/GitHub/DWeb";
-
 // Simulation parameters
 uint32_t node_count = 100;  // Number of gateway routers
 double simulation_duration = 60;
@@ -90,7 +88,7 @@ int request_rate = 2;
 double request_alpha = 0.7;
 
 // Cache parameters
-std::string cs_policy = "nfd::cs::popularity_priority_queue"; //"dweb_broadcast"; //"nfd::cs::lru"; //
+std::string cs_policy = "nfd::cs::popularity_priority_queue";
 double cache_budget = 0.01;
 bool magic_enabled = true;
 
@@ -110,7 +108,7 @@ namespace ns3
       nodes.push_back(i);
 
     for (int i = 0; i < target_count; ++i){
-      uint32_t index = rand() % (nodes.size() - 1); //distribution->GetInteger(0, nodes.size() - 1);
+      uint32_t index = rand() % (nodes.size() - 1);
       std::string node_name = "Node" + std::to_string(nodes.at(index));
       result.Add(Names::Find<Node>(node_name));
 
@@ -131,7 +129,6 @@ namespace ns3
 
     // These two instructions will make sure that ns-3 simulation work in real time and accept data from Docker Containers.
     GlobalValue::Bind("SimulatorImplementationType", StringValue("ns3::RealtimeSimulatorImpl"));
-    // GlobalValue::Bind("ChecksumEnabled", BooleanValue(true));
 
     CommandLine cmd;
     cmd.Parse(argc, argv);
@@ -163,7 +160,6 @@ namespace ns3
 
     // Install NDN stack on all ndn nodes
     ndn::StackHelper ndnHelper;
-
     NodeContainer nodes;
 
     for (uint32_t i = 0; i < node_count; ++i)
@@ -198,8 +194,10 @@ namespace ns3
 
 
     std::string broadcast_prefix = "/broadcast";
-    // ndn::StrategyChoiceHelper::Install(nodes, "/", "/localhost/nfd/strategy/multicast"); //"/localhost/nfd/strategy/best-route");// 
+
     ndn::StrategyChoiceHelper::Install(nodes, broadcast_prefix, "/localhost/nfd/strategy/multicast");
+  	// Uncomment to use the broadcast strategy for all requests, as described in DWeb
+    // ndn::StrategyChoiceHelper::Install(nodes, "/", "/localhost/nfd/strategy/multicast");
 
     
 
@@ -207,11 +205,8 @@ namespace ns3
     ndn::GlobalRoutingHelper ndnGlobalRoutingHelper;
     ndnGlobalRoutingHelper.Install(nodes);
     ndnGlobalRoutingHelper.AddOrigins(broadcast_prefix, nodes);
-    // ndnGlobalRoutingHelper.AddOrigins("/", nodes);
-
 
     boost::asio::io_service io_service;
-    
     UDPClient::instance().connect("127.0.0.1", 3000, io_service);
     std::thread thread([&io_service]() { io_service.run(); });
     

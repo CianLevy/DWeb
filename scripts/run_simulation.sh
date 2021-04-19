@@ -4,8 +4,9 @@ NDNSIM_PATH="../ndnSIM"
 
 EXAMPLES_PATH="/ns-3/src/ndnSIM/examples"
 NFD_FW_PATH="/ns-3/src/ndnSIM/NFD/daemon/fw"
-
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 FILE_NAME="dweb_simulation"
+USER_NAME="${SUDO_USER:-$USER}"
 
 rsync -r "../ndnSIM_modifications/" ${NDNSIM_PATH}"/ns-3/src/ndnSIM"
 rsync -r "../sim_files/" ${NDNSIM_PATH}${EXAMPLES_PATH}
@@ -13,7 +14,7 @@ rsync -r "../topologies/" ${NDNSIM_PATH}${EXAMPLES_PATH}"/topologies"
 mkdir ${NDNSIM_PATH}${EXAMPLES_PATH}/$FILE_NAME
 rsync -r "../sim_files/custom-apps/" ${NDNSIM_PATH}${EXAMPLES_PATH}/$FILE_NAME
 
-chown -R cian ${NDNSIM_PATH}${EXAMPLES_PATH}
+chown -R $USER_NAME ${NDNSIM_PATH}${EXAMPLES_PATH}
 
 cd $NDNSIM_PATH/ns-3
 
@@ -40,7 +41,7 @@ function run_test {
     fi
 
     LOG_FILE=${LOG_FILE//./_}
-    LOG_DIR="/home/cian/Documents/GitHub/DWeb/scripts/logs/$LOG_FILE"
+    LOG_DIR="$DIR/logs/$LOG_FILE"
 
     if [ -d "$LOG_DIR" ]; then
         rm -r $LOG_DIR
@@ -49,7 +50,7 @@ function run_test {
     mkdir $LOG_DIR
     exec >> $LOG_DIR/$LOG_FILE.txt
     exec 2>&1
-    chown -R cian $LOG_DIR
+    chown -R $USER_NAME $LOG_DIR
 
     echo "$1 cache budget $2"
     echo "Alpha: $3"
@@ -62,9 +63,9 @@ function run_test {
     
 
     cp "app-delays-trace.txt" $LOG_DIR
-    cd /home/cian/Documents/GitHub/DWeb/scripts/
+    cd $DIR
     python3 read_logs.py $LOG_FILE
-    chown -R cian $LOG_DIR/$LOG_FILE.txt
+    chown -R $USER_NAME $LOG_DIR/$LOG_FILE.txt
     cd $NDNSIM_PATH/ns-3
 
 }
@@ -81,7 +82,7 @@ then
     ./waf --command-template="gdb %s" --run=$FILE_NAME 
 elif [ "$1" = "-l" ];
 then
-    LOG_DIR="/home/cian/Documents/GitHub/DWeb/scripts/logs/$2"
+    LOG_DIR="$DIR/logs/$2"
     if [ -d "$LOG_DIR" ]; then
         rm -r $LOG_DIR
     fi
@@ -89,13 +90,13 @@ then
     mkdir $LOG_DIR
     exec >> $LOG_DIR/$2.txt
     exec 2>&1
-    chown -R cian $LOG_DIR
+    chown -R $USER_NAME $LOG_DIR
 
     NS_LOG=DWebConsumer:DWebProducer:ndn-cxx.nfd.Magic:ndn-cxx.nfd.ContentStore:ndn-cxx.nfd.Forwarder  ./waf --run=$FILE_NAME
     
     cp "app-delays-trace.txt" $LOG_DIR
     
-    cd /home/cian/Documents/GitHub/DWeb/scripts/
+    cd $DIR
     python3 read_logs.py $2
     cd $NDNSIM_PATH/ns-3
 
