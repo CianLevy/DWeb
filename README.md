@@ -39,3 +39,13 @@ Prior to running the simulation, ensure that the ```repoPath``` in ```dweb_simul
 * -run_test - runs a number of repeat simulations with both the LRU-based LCE and MAGIC caching strategies across a range of cache budgets. The corresponding logs for the simulations will be output to ```scripts/logs/```
 * -run_test_alpha - runs a number of repeat simulations with both the LRU-based LCE and MAGIC caching strategies across a range of $\alpha$ (or $s$) power values in the Zipf-Mandelbrot request distribution
 * run_test_baseline - runs a number of repeat simulations with both the popularity-based LCE and DWeb broadcast caching strategies across a range of cache budgets
+
+
+### Analysing the simulation results
+When run with the -l or -run_test* flags, the logs produced in the ```scripts/logs/``` directory are automatically parsed using the ```read_logs.py``` script. The script produces additionally summary files within the corresponding log folder for the cache behaviour, consumer request history, producer production history, along with plots of the request distribution and cache hit ratio vs object popularity. The relevant files contain key performance metrics such as the average cache hit ratio, number of caching operations, and average hop count. 
+
+For a test run over a range of values (run with a -run_test* flag), the output directories for each individual simulation can be copied to a single directory for further analysis. e.g. the output from the test can be copied to a single directory ```test_1``` which contains all the results associated with the test. Running ```python summarise_test.py <test_dir_name>```  will produce a csv with a name corresponding to the test directory name in the ```scripts/test_summaries``` directory. The resulting csv will contain columns for the caching strategy, cache budget, average hop count, hit ratio, cache insertion count, and eviction count for each simulation in the test.
+
+Finally, running ```python plot_results.py <topology_size> <test_dir_name>``` (where topology_size is the number of nodes in the topology) will produce a set of plots in the ```images/<test_dir_name>``` directory showing the average hop count, cache hit ratio, and number of caching operations across the range of test values.
+
+The test summaries associated with the results presented in my dissertation are provided in the ```summary_100_nodes.csv``` and ```summary_50_nodes.csv``` files along with their respective plots in the ```images``` directory. The raw logs used to generate the summaries are available upon request, but are not provided here due to their combined size exceeding 50 GB.
