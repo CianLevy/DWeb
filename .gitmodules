@@ -1,0 +1,6 @@
+[submodule "ndnSIM/ns-3"]
+	path = ndnSIM/ns-3
+	url = https://github.com/CianLevy/ns-3-dev.git
+[submodule "ndnSIM/pybindgen"]
+	path = ndnSIM/pybindgen
+	url = https://github.com/named-data-ndnSIM/pybindgen.git

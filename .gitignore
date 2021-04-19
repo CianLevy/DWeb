@@ -31,10 +31,6 @@
 *.out
 *.app
 
-
-# ndnSIM
-/ndnSIM
-
 scripts/.bootnode
 scripts/.ethash
 scripts/.ether-*

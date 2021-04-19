@@ -3,7 +3,10 @@
 This repo contains an ndnSIM simulation to simulate DWeb, scripts for running the required Ethereum blockchain in docker containers, and the modifications required to implement the MAGIC caching algorithm.
 
 ## Instructions for running
-To run the simulation, a local installation of ndnSIM is required in a top level folder called ```ndnSIM```. ndnSIM/ns-3 should be installed directly in the folder such that it contains the ```ns-3``` folder at the top level.
+To run the simulation, a local installation of ndnSIM is required in a top level folder called ```ndnSIM```. ndnSIM/ns-3 should be installed directly in the folder such that it contains the ```ns-3``` folder at the top level. The installation is provided as a submodule which can be obtained by recursively cloning the repository. Alternatively, the installation can be created manually be following the steps provided here: https://ndnsim.net/current/getting-started.html
+Note: the simulation is based on ndnSIM 2.8 and involves direct modification of this ndnSIM version and therefore may not be compatible with other versions.
+
+After creating the local ns-3 and ndnSIM installation, run the ```configure_waf.sh``` in the scripts folder to initialise the environment.
 
 ### Creating the Ethereum network
 Prior to running the simulation, the Ethereum network must be created and running. To create the network, run the ```start_here.sh``` script in the ```scripts``` folder. Once the containers have been started along with their respective Ethereum client instances, connect to the ```multi_gateway``` container and start the miner as show in the commands below.
