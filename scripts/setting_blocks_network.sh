@@ -114,15 +114,12 @@ declare -i ip_c1=$4
 
 
 contname=multi${i}
-#IMGNAME="ethereum/client-go:v1.8.12"
 IMGNAME="ramansingh1984/eth-smart"
 DETACH_FLAG=${DETACH_FLAG:-"-itd"}
 DATA_ROOT=${DATA_ROOT:-"$(pwd)/.ether-$contname"}
 DATA_HASH=${DATA_HASH:-"$(pwd)/.ethash-$contname"}
-#RPC_PORTMAP=
-#RPC_ARG=
+
 if [[ ! -z $RPC_PORT ]]; then
-#    RPC_ARG='--ws --wsaddr=0.0.0.0 --wsport 8546 --wsapi=db,eth,net,web3,personal --wsorigins "*" --rpc --rpcaddr=0.0.0.0 --rpcport 8545 --rpcapi=db,eth,net,web3,personal --rpccorsdomain "*"'
     RPC_ARG='--nousb --rpc --rpcaddr=0.0.0.0 --rpcport 8545 --rpcapi=db,eth,net,web3,personal --rpccorsdomain "*"'
     RPC_PORTMAP="-p $RPC_PORT:8545"
 fi
@@ -132,29 +129,16 @@ echo "Running new container $contname..."
 
 docker run -itd --name ${contname} --network bridge --publish-all=true  -v $DATA_ROOT:/root/.ethereum -v $DATA_HASH:/root/.ethash -v $(pwd)/genesis.json:/opt/genesis.json $IMGNAME 
 
-#docker exec -itd ${contname} geth --nousb --rpc --rpcaddr=0.0.0.0 --rpcport 8545 --rpcapi=db,eth,net,web3,personal --rpccorsdomain "*"
-
-# Connect the ethereum nodes with peers using bootnode
-
-
-
-#docker exec -itd ${contname} geth --networkid 987 --syncmode=fast --nousb --rpc --rpcaddr=0.0.0.0 --rpcport 8545 --rpcapi=db,eth,net,web3,personal --rpccorsdomain "*" init /opt/genesis.json
-
 docker exec -itd ${contname} geth --networkid 987 --syncmode=fast --nousb --rpc --rpcaddr=0.0.0.0 --rpcport 8545 --rpcapi=db,eth,net,web3,personal --rpccorsdomain "*" init /opt/genesis.json
 
+# Connect the ethereum nodes with peers using bootnode
 docker exec -itd ${contname} geth --bootnodes=$BOOTNODE_URL
 
 # Create a new account in each ethereum nodes
-
 docker cp pass_file.txt ${contname}:/pass_file.txt
 echo  ${contname}> pass_file.txt
 docker cp pass_file.txt ${contname}:/pass_file.txt
-#docker exec -it ${contname} pkill -f "geth"
+
 docker exec -itd ${contname} geth account new --password pass_file.txt
 docker exec -itd ${contname} geth --password pass_file.txt --unlock primary --rpccorsdomain localhost --verbosity 4 2>> geth.log
 docker exec -itd ${contname} geth --mine --minerthreads 1
-
-
-
-
-

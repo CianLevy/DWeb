@@ -12,6 +12,7 @@ rsync -r "../ndnSIM_modifications/" ${NDNSIM_PATH}"/ns-3/src/ndnSIM"
 rsync -r "../sim_files/" ${NDNSIM_PATH}${EXAMPLES_PATH}
 rsync -r "../topologies/" ${NDNSIM_PATH}${EXAMPLES_PATH}"/topologies"
 mkdir ${NDNSIM_PATH}${EXAMPLES_PATH}/$FILE_NAME
+mkdir logs
 rsync -r "../sim_files/custom-apps/" ${NDNSIM_PATH}${EXAMPLES_PATH}/$FILE_NAME
 
 chown -R $USER_NAME ${NDNSIM_PATH}${EXAMPLES_PATH}

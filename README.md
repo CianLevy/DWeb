@@ -9,7 +9,7 @@ Note: the simulation is based on ndnSIM 2.8 and involves direct modification of 
 After creating the local ns-3 and ndnSIM installation, run the ```configure_waf.sh``` in the scripts folder to initialise the environment.
 
 ### Creating the Ethereum network
-Prior to running the simulation, the Ethereum network must be created and running. To create the network, run the ```start_here.sh``` script in the ```scripts``` folder. Once the containers have been started along with their respective Ethereum client instances, connect to the ```multi_gateway``` container and start the miner as show in the commands below.
+Prior to running the simulation, the Ethereum network must be created and running. To create the network, run the ```start_ethereum.sh``` script in the ```scripts``` folder. Once the containers have been started along with their respective Ethereum client instances, connect to the ```multi_gateway``` container and start the miner as show in the commands below.
 
 ```bash
 docker exec -it multi_gateway bin/sh

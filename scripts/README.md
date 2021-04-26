@@ -1,0 +1,2 @@
+The scripts provided in this folder are used to launch the Ethereum network and simulation using the steps described in the main README for the repository.
+The scripts used to launch and manage the Ethereum network (```start_ethereum.sh```, ```wipeall.sh```, ```gateway_node.sh```, etc...) are provided by Dr. Raman Singh. Modifications have been made to eliminate an obsolete TAP bridge arrangement used for the previous DWeb implementation, along with changes to install the required Python dependencies in the gateway Docker container. All other scripts are my own work.
